@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Connection to Initial Contact for Respond.IO
+
+Parameters:
+  Environment:
+    Type: String
+
+  secretRespondIO:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Arn de secreto de credenciales para acceder a la base de datos.
+
+  utilsIntelixLayerArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Arn de capa común con conexiones SQL, a secrets, etc.
+
+  securityGroupLambda:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Security group lambda
+
+  securityGroupProxy:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Security group proxy
+
+  subnetIDs:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Lista de Ids de los grupos de seguridad de cada subnet desde donde
+      se puede acceder a la base de datos. Se recomienda al menos dos
+
+  restApiIdInternal:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: API Id principal
+
+  countryResource:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Id del recurso del API
+
+  integrationMainPath:
+    Type: String
+    Description: Ruta base para consulta de articulos de la api compartida
+    Default: respond-io
+
+Resources:
+
+  # Lambdas
+  getCustomerDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      # Description:
+      CodeUri: functions/msate-get-customer-data/
+      Runtime: python3.12
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          secretRespondIO: !Ref secretRespondIO
+      VpcConfig:
+        SubnetIds: !Split
+          - ','
+          - !Ref subnetIDs
+        SecurityGroupIds:
+          - !Ref securityGroupLambda
+          - !Ref securityGroupProxy
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref secretRespondIO
+      Layers:
+        - !Ref utilsIntelixLayerArn
+
+  # Lambda Logs
+
+  getCustomerDataLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: getCustomerDataFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
+      RetentionInDays: 30
+
+  # Api Resource
+
+  getCustomerDataResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref restApiIdInternal
+      ParentId: !Ref countryResource
+      PathPart: !Ref integrationMainPath
+
+  reportHistoryResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref restApiIdInternal
+      ParentId: !Ref getCustomerDataResource
+      PathPart: respond-io
+
+  # Api Method
+
+  customerDataGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref restApiIdInternal
+      ResourceId: !Ref reportHistoryResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
+
+  # Lambda Permissions
+
+  reportHistoryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref getCustomerDataFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/respond-io
