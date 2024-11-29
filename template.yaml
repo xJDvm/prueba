@@ -105,7 +105,7 @@ Resources:
     Properties:
       RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
       ParentId: !Ref getCustomerDataResource
-      PathPart: respond-io
+      PathPart: customer
 
   # Api Method
 
