@@ -6,34 +6,34 @@ Parameters:
   Environment:
     Type: String
 
-  secretRespondIO:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Arn de secreto de credenciales para acceder a la base de datos.
+  # secretRespondIO:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Arn de secreto de credenciales para acceder a la base de datos.
 
-  utilsIntelixLayerArn:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Arn de capa común con conexiones SQL, a secrets, etc.
+  # utilsIntelixLayerArn:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Arn de capa común con conexiones SQL, a secrets, etc.
 
-  securityGroupLambda:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Security group lambda
+  # securityGroupLambda:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Security group lambda
 
-  securityGroupProxy:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Security group proxy
+  # securityGroupProxy:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Security group proxy
 
-  subnetIDs:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Lista de Ids de los grupos de seguridad de cada subnet desde donde
-      se puede acceder a la base de datos. Se recomienda al menos dos
+  # subnetIDs:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Lista de Ids de los grupos de seguridad de cada subnet desde donde
+  #     se puede acceder a la base de datos. Se recomienda al menos dos
 
-  restApiIdInternal:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: API Id principal
+  # restApiIdInternal:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: API Id principal
 
-  countryResource:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: Id del recurso del API
+  # countryResource:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: Id del recurso del API
 
   integrationMainPath:
     Type: String
@@ -41,6 +41,19 @@ Parameters:
     Default: respond-io
 
 Resources:
+
+  parameterResolver:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: parameter-resolver.yml
+      Parameters:
+        utilsIntelixLayerArn: !Sub /${Environment}/ate/parameters/layers/intelixpythonlayerutils 
+        secretRespondIO: !Sub /${Environment}/ate/parameters/common/postgres/app_respond_io
+        securityGroupLambda: !Sub /${Environment}/ate/parameters/network/default-lambda-security-group
+        securityGroupProxy: !Sub /${Environment}/ate/parameters/rds/rdsproxysg
+        subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids
+        restApiIdInternal: !Sub /${Environment}/ate/parameters/apigateway/restapiidinternal
+        countryResource: !Sub /${Environment}/ate/parameters/apigateway/countryresourceinternal
 
   # Lambdas
   getCustomerDataFunction:
@@ -52,22 +65,22 @@ Resources:
       Handler: app.lambda_handler
       Environment:
         Variables:
-          secretRespondIO: !Ref secretRespondIO
+          secretRespondIO: !GetAtt parameterResolver.Outputs.secretRespondIO
       VpcConfig:
         SubnetIds: !Split
           - ','
-          - !Ref subnetIDs
+          - !GetAtt parameterResolver.Outputs.subnetIDs
         SecurityGroupIds:
-          - !Ref securityGroupLambda
-          - !Ref securityGroupProxy
+          - !GetAtt parameterResolver.Outputs.securityGroupLambda
+          - !GetAtt parameterResolver.Outputs.securityGroupProxy
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
-              Resource: !Ref secretRespondIO
+              Resource: !Ref parameterResolver.Outputs.secretRespondIO
       Layers:
-        - !Ref utilsIntelixLayerArn
+        - !GetAtt parameterResolver.Outputs.utilsIntelixLayerArn
 
   # Lambda Logs
 
@@ -83,14 +96,14 @@ Resources:
   getCustomerDataResource:
     Type: AWS::ApiGateway::Resource
     Properties:
-      RestApiId: !Ref restApiIdInternal
-      ParentId: !Ref countryResource
+      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
+      ParentId: !GetAtt parameterResolver.Outputs.countryResource
       PathPart: !Ref integrationMainPath
 
-  reportHistoryResource:
+  CustomerDataResource:
     Type: AWS::ApiGateway::Resource
     Properties:
-      RestApiId: !Ref restApiIdInternal
+      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
       ParentId: !Ref getCustomerDataResource
       PathPart: respond-io
 
@@ -99,7 +112,7 @@ Resources:
   customerDataGetMethod:
     Type: AWS::ApiGateway::Method
     Properties:
-      RestApiId: !Ref restApiIdInternal
+      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
       ResourceId: !Ref reportHistoryResource
       HttpMethod: POST
       AuthorizationType: NONE
@@ -110,10 +123,10 @@ Resources:
 
   # Lambda Permissions
 
-  reportHistoryPermission:
+  CustomerDataPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref getCustomerDataFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/respond-io
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${parameterResolver.Outputs.restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/customer
