@@ -78,7 +78,7 @@ Resources:
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
-              Resource: !Ref parameterResolver.Outputs.secretRespondIO
+              Resource: !GetAtt parameterResolver.Outputs.secretRespondIO
       Layers:
         - !GetAtt parameterResolver.Outputs.utilsIntelixLayerArn
 
@@ -113,7 +113,7 @@ Resources:
     Type: AWS::ApiGateway::Method
     Properties:
       RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-      ResourceId: !Ref reportHistoryResource
+      ResourceId: !Ref CustomerDataResource
       HttpMethod: POST
       AuthorizationType: NONE
       Integration:
