@@ -1,8 +1,4 @@
-import json
-import psycopg2
 from dbconnection.dbconnection import connect
-from queries.getdata import generate_query
-from datetime import datetime
 from lambda_response import lambda_response
 from status_http import HttpStatus
 
@@ -18,17 +14,24 @@ def lambda_handler(event, context):
         # Obtener el nombre del cliente de la solicitud
         customer_name = body.get('customer_name', '')
 
-        # Obtener la conexión a la base de datos
-        # connection = get_postgres_connection()
+        # Conexión a la base de datos
+        conn = connect(body.get('country'))
 
-        # Realizar la consulta a la base de datos
-        # cursor = connection.cursor()
-        # cursor.execute("SELECT * FROM customers WHERE name = %s", (customer_name,))
-        # customer_data = cursor.fetchone()
+        # Crear un cursor
+        cursor = conn.cursor()
 
-        # Cerrar el cursor y la conexión
-        # cursor.close()
-        # connection.close()
+        # Generar la consulta
+        cursor.execute("SELECT * FROM global.clients WHERE name = %s", ("XX",))
+
+        # Obtener los datos
+        customer_data = cursor.fetchall()
+
+        # Cerrar el cursor
+        cursor.close()
+        # Cerrar la conexión
+        conn.close()
+
+        print(customer_data)
 
         # Construir la respuesta
         response_body = {
