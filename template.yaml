@@ -62,7 +62,7 @@ Resources:
       # Description:
       CodeUri: functions/msate-get-customer-data/
       Runtime: python3.12
-      Handler: app.lambda_handler
+      Handler: lambda_function.lambda_handler
       Environment:
         Variables:
           secretRespondIO: !GetAtt parameterResolver.Outputs.secretRespondIO
