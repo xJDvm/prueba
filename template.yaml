@@ -115,10 +115,10 @@ Resources:
     Properties:
       RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
       ResourceId: !Ref CustomerDataResource
-      HttpMethod: GET
+      HttpMethod: POST
       AuthorizationType: NONE
       Integration:
-        IntegrationHttpMethod: GET
+        IntegrationHttpMethod: POST
         Type: AWS_PROXY
         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
 
