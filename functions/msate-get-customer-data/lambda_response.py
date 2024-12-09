@@ -23,7 +23,7 @@ def lambda_response(httpStatus:HttpStatus, body:dict):
     # Construir la respuesta HTTP con el código de estado y el cuerpo del mensaje
     return {
         "statusCode": status_code,
-        "body": json.dumps(body),
+        'body': json.dumps(body, ensure_ascii=False),  # Conversión a JSON aquí
         "headers": {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Credentials": True,
