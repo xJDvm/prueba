@@ -7,15 +7,17 @@ def lambda_handler(event, context):
     print(event)
 
     try:
-        # Obtener el cuerpo de la solicitud
-        body = event.get('body', {})
+        # Obtener los parámetros de la consulta
+        query_params = event.get('queryStringParameters')
+        if query_params is None or query_params == 'None':
+            query_params = {}
 
         country = event.get('pathParameters', {}).get('country')
 
         print('pais: ', country)
 
-        # Obtener el nombre del cliente de la solicitud
-        customer_name = body.get('customer_name', '')
+        # Obtener el nombre del cliente de los parámetros de la consulta
+        customer_name = query_params.get('customer_name', '')
 
         try:
             # Conexión a la base de datos
@@ -30,7 +32,8 @@ def lambda_handler(event, context):
         cursor = conn.cursor()
 
         try:
-            cursor.execute("SELECT * FROM config.users WHERE name = 'jvaldes'")
+            # Usar un parámetro en la consulta SQL
+            cursor.execute("SELECT * FROM global.clients WHERE name = %s", (customer_name,))
             print('consulta exitosa')
 
             customer_data = cursor.fetchall()
@@ -52,7 +55,7 @@ def lambda_handler(event, context):
         response_body = {
             "message": "Customer data retrieved successfully",
             "customer_name": customer_name,
-            # "customer_data": customer_data
+            "customer_data": customer_data
         }
 
         # Retornar la respuesta
