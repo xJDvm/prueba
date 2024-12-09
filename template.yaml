@@ -59,6 +59,7 @@ Resources:
   getCustomerDataFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Timeout: 10
       # Description:
       CodeUri: functions/msate-get-customer-data/
       Runtime: python3.12
@@ -114,7 +115,7 @@ Resources:
     Properties:
       RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
       ResourceId: !Ref CustomerDataResource
-      HttpMethod: POST
+      HttpMethod: GET
       AuthorizationType: NONE
       Integration:
         IntegrationHttpMethod: POST

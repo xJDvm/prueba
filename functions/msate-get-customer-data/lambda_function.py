@@ -7,31 +7,46 @@ def lambda_handler(event, context):
     print(event)
 
     try:
-
         # Obtener el cuerpo de la solicitud
         body = event.get('body', {})
+
+        country = event.get('pathParameters', {}).get('country')
+
+        print('pais: ', country)
 
         # Obtener el nombre del cliente de la solicitud
         customer_name = body.get('customer_name', '')
 
-        # Conexión a la base de datos
-        conn = connect(body.get('country'))
+        try:
+            # Conexión a la base de datos
+            conn = connect(country)
+            print(conn)
+        except Exception as e:
+            print('error en la conexión a la base de datos')
+            print(e)
+            return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": "Database connection failed"})
 
         # Crear un cursor
         cursor = conn.cursor()
 
-        # Generar la consulta
-        cursor.execute("SELECT * FROM global.clients WHERE name = %s", ("XX",))
+        try:
+            cursor.execute("SELECT * FROM config.users WHERE name = 'jvaldes'")
+            print('consulta exitosa')
 
-        # Obtener los datos
-        customer_data = cursor.fetchall()
+            customer_data = cursor.fetchall()
 
-        # Cerrar el cursor
-        cursor.close()
-        # Cerrar la conexión
-        conn.close()
+            # Cerrar el cursor
+            cursor.close()
+            # Cerrar la conexión
+            conn.close()
 
-        print(customer_data)
+            print(customer_data)
+        except Exception as e:
+            print('error en la consulta')
+            print(e)
+            cursor.close()
+            conn.close()
+            return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
 
         # Construir la respuesta
         response_body = {
