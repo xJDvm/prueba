@@ -17,8 +17,10 @@ def lambda_handler(event, context):
 
         print('pais: ', country)
 
-        # Obtener el nombre del cliente de los parámetros de la consulta
-        customer_name = query_params.get('customer_name', '')
+        # Obtener el client_identification_number de los parámetros de la consulta
+        customer_identification = query_params.get('customer_identification')
+        if not customer_identification:
+            return lambda_response(HttpStatus.BAD_REQUEST, {"error": "Customer identification is required"})
 
         try:
             # Conexión a la base de datos
@@ -34,7 +36,7 @@ def lambda_handler(event, context):
 
         try:
             # Usar un parámetro en la consulta SQL para obtener datos del cliente
-            cursor.execute("SELECT * FROM global.clients WHERE client_identification_number = '3006101757'")
+            cursor.execute("SELECT * FROM global.clients WHERE client_identification_number = %s", (customer_identification,))
             print('consulta exitosa')
 
             rows = cursor.fetchall()
@@ -66,7 +68,6 @@ def lambda_handler(event, context):
         # Construir la respuesta
         response_body = {
             "message": "Customer data retrieved successfully",
-            "customer_name": customer_name,
             "customer_data": customer_data
         }
 
