@@ -1,9 +1,10 @@
+import json
+import psycopg2.extras
 from dbconnection.dbconnection import connect
 from lambda_response import lambda_response
 from status_http import HttpStatus
 
 def lambda_handler(event, context):
-
     print(event)
 
     try:
@@ -29,27 +30,38 @@ def lambda_handler(event, context):
             return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": "Database connection failed"})
 
         # Crear un cursor
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         try:
-            # Usar un parámetro en la consulta SQL
-            cursor.execute("SELECT * FROM global.clients WHERE name = %s", (customer_name,))
+            # Usar un parámetro en la consulta SQL para obtener datos del cliente
+            cursor.execute("SELECT * FROM global.clients WHERE client_identification_number = '3006101757'")
             print('consulta exitosa')
 
-            customer_data = cursor.fetchall()
+            rows = cursor.fetchall()
 
-            # Cerrar el cursor
-            cursor.close()
-            # Cerrar la conexión
-            conn.close()
+            customer_data = []
+            for row in rows:
+                customer_info = dict(row)
 
-            print(customer_data)
+                # Consulta adicional para obtener el client_type
+                client_type_id = customer_info['client_type']
+                print(client_type_id)
+                cursor.execute("SELECT client_type FROM global.client_types WHERE client_types_code = %s", (client_type_id,))
+                client_type_row = cursor.fetchone()
+                if client_type_row:
+                    customer_info['client_type'] = client_type_row['client_type']
+
+                customer_data.append(customer_info)
+
+            print(json.dumps(customer_data, indent=2, ensure_ascii=False))  # Imprimir datos transformados en formato JSON
+
         except Exception as e:
             print('error en la consulta')
             print(e)
+            return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
+        finally:
             cursor.close()
             conn.close()
-            return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
 
         # Construir la respuesta
         response_body = {
@@ -58,11 +70,15 @@ def lambda_handler(event, context):
             "customer_data": customer_data
         }
 
+        # Convertir la respuesta en JSON
+        json_response_body = json.dumps(response_body, ensure_ascii=False)
+
         # Retornar la respuesta
-        return lambda_response(HttpStatus.OK, response_body)
+        return lambda_response(HttpStatus.OK, json_response_body)
 
     except Exception as e:
         # Manejar el error
+        print(e)
         return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
 
     pass
