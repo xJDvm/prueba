@@ -65,21 +65,16 @@ def lambda_handler(event, context):
             cursor.close()
             conn.close()
 
-        # Construir la respuesta
+        # Construir la respuesta sin serializar el customer_data
         response_body = {
             "message": "Customer data retrieved successfully",
-            "customer_data": json.dumps(customer_data)
+            "customer_data": customer_data  # No llamar a json.dumps aquí
         }
 
-        # Convertir la respuesta en JSON
-        json_response_body = json.dumps(response_body, ensure_ascii=False)
-
-        # Retornar la respuesta
-        return lambda_response(HttpStatus.OK, json_response_body)
+        # Convertir la respuesta en JSON antes de enviarla
+        return lambda_response(HttpStatus.OK, response_body)
 
     except Exception as e:
         # Manejar el error
         print(e)
         return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
-
-    pass
