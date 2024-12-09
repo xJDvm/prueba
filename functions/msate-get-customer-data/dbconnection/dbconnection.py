@@ -11,14 +11,14 @@ def connect(country):
 
     credentials = json.loads(getSecret(os.environ['AWS_REGION'], secret_name))
 
-    # print(credentials)
+    print(credentials)
 
     # Conexión a la base de datos
     conn = psycopg2.connect(
         dbname=credentials['dbname'],
         user=credentials['username'],
         password=credentials['password'],
-        host=credentials['hostro']
+        host=credentials['host']
     )
 
     return conn

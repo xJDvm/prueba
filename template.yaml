@@ -118,7 +118,7 @@ Resources:
       HttpMethod: GET
       AuthorizationType: NONE
       Integration:
-        IntegrationHttpMethod: POST
+        IntegrationHttpMethod: GET
         Type: AWS_PROXY
         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
 
