@@ -67,7 +67,6 @@ def lambda_handler(event, context):
 
         # Construir la respuesta
         response_body = {
-            "message": "Customer data retrieved successfully",
             "customer_data": customer_data
         }
 
