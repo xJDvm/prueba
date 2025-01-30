@@ -35,19 +35,19 @@ Resources:
 #    Properties:
 #      Location: parameter-resolver.yml
 #      Parameters:
-#        utilsIntelixLayerArn: !Sub /${Environment}/ate/parameters/layers/intelixpythonlayerutils
-#        secretRespondIO: !Sub /${Environment}/ate/parameters/common/postgres/app_respond_io
-#        securityGroupLambda: !Sub /${Environment}/ate/parameters/network/default-lambda-security-group
-#        securityGroupProxy: !Sub /${Environment}/ate/parameters/rds/rdsproxysg
-#        subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids
-#        restApiIdInternal: !Sub /${Environment}/ate/parameters/apigateway/restapiidinternal
-#        countryResource: !Sub /${Environment}/ate/parameters/apigateway/countryresourceinternal
+#        utilsIntelixLayerArn: !Sub /${Environment}/respond/parameters/layers/intelixpythonlayerutils
+#        secretRespondIO: !Sub /${Environment}/respond/parameters/common/postgres/app_respond_io
+#        securityGroupLambda: !Sub /${Environment}/respond/parameters/network/default-lambda-security-group
+#        securityGroupProxy: !Sub /${Environment}/respond/parameters/rds/rdsproxysg
+#        subnetIDs: !Sub /${Environment}/respond/parameters/network/subnet-ids
+#        restApiIdInternal: !Sub /${Environment}/respond/parameters/apigateway/restapiidinternal
+#        countryResource: !Sub /${Environment}/respond/parameters/apigateway/countryresourceinternal
 
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
     Properties:
       # TODO: Change this to your secret name
-      Name: !Sub ate/${Environment}/common/postgres/temp/firstContact
+      Name: !Sub respond/${Environment}/common/postgres/temp/firstContact
       Description: Secret for RDS Proxy connection
       GenerateSecretString:
         SecretStringTemplate: '{"username": "masteradmin", "engine": "aurora-postgresql"}'
@@ -56,16 +56,15 @@ Resources:
         ExcludeCharacters: '"@/\'
       Tags:
         - Key: Ambiente
-          Value: !Ref Ambiente
-        - Key: TipoApoyoATE
-          Value: Indirecto
-        - Key: Proyecto
-          Value: ATE
+          Value: !FindInMap
+            - Environments
+            - !Ref Environment
+            - Value
 
   SecretCommonPostgresOutputParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub /${Environment}/ate/parameters/common/cr/secret/postgres/temp
+      Name: !Sub /${Environment}/respond/parameters/common/cr/secret/postgres/temp
       Type: String
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
@@ -141,79 +140,79 @@ Resources:
 
 
 
-  # Lambdas
-  getCustomerDataFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Timeout: 10
-      # Description:
-      CodeUri: functions/msate-get-customer-data/
-      Runtime: python3.12
-      Handler: lambda_function.lambda_handler
-      Environment:
-        Variables:
-          secretRespondIO: !GetAtt parameterResolver.Outputs.secretRespondIO
-      VpcConfig:
-        SubnetIds: !Split
-          - ','
-          - !GetAtt parameterResolver.Outputs.subnetIDs
-        SecurityGroupIds:
-          - !GetAtt parameterResolver.Outputs.securityGroupLambda
-          - !GetAtt parameterResolver.Outputs.securityGroupProxy
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - secretsmanager:GetSecretValue
-              Resource: !GetAtt parameterResolver.Outputs.secretRespondIO
-      Layers:
-        - !GetAtt parameterResolver.Outputs.utilsIntelixLayerArn
+  # # Lambdas
+  # getCustomerDataFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     Timeout: 10
+  #     # Description:
+  #     CodeUri: functions/msate-get-customer-data/
+  #     Runtime: python3.12
+  #     Handler: lambda_function.lambda_handler
+  #     Environment:
+  #       Variables:
+  #         secretRespondIO: !GetAtt parameterResolver.Outputs.secretRespondIO
+  #     VpcConfig:
+  #       SubnetIds: !Split
+  #         - ','
+  #         - !GetAtt parameterResolver.Outputs.subnetIDs
+  #       SecurityGroupIds:
+  #         - !GetAtt parameterResolver.Outputs.securityGroupLambda
+  #         - !GetAtt parameterResolver.Outputs.securityGroupProxy
+  #     Policies:
+  #       - Statement:
+  #           - Effect: Allow
+  #             Action:
+  #               - secretsmanager:GetSecretValue
+  #             Resource: !GetAtt parameterResolver.Outputs.secretRespondIO
+  #     Layers:
+  #       - !GetAtt parameterResolver.Outputs.utilsIntelixLayerArn
 
-  # Lambda Logs
+  # # Lambda Logs
 
-  getCustomerDataLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: getCustomerDataFunction
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
-      RetentionInDays: 30
+  # getCustomerDataLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   DependsOn: getCustomerDataFunction
+  #   Properties:
+  #     LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
+  #     RetentionInDays: 30
 
-  # Api Resource
+  # # Api Resource
 
-  getCustomerDataResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-      ParentId: !GetAtt parameterResolver.Outputs.countryResource
-      PathPart: !Ref integrationMainPath
+  # getCustomerDataResource:
+  #   Type: AWS::ApiGateway::Resource
+  #   Properties:
+  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
+  #     ParentId: !GetAtt parameterResolver.Outputs.countryResource
+  #     PathPart: !Ref integrationMainPath
 
-  CustomerDataResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-      ParentId: !Ref getCustomerDataResource
-      PathPart: customer
+  # CustomerDataResource:
+  #   Type: AWS::ApiGateway::Resource
+  #   Properties:
+  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
+  #     ParentId: !Ref getCustomerDataResource
+  #     PathPart: customer
 
-  # Api Method
+  # # Api Method
 
-  customerDataGetMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-      ResourceId: !Ref CustomerDataResource
-      HttpMethod: POST
-      AuthorizationType: NONE
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
+  # customerDataGetMethod:
+  #   Type: AWS::ApiGateway::Method
+  #   Properties:
+  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
+  #     ResourceId: !Ref CustomerDataResource
+  #     HttpMethod: POST
+  #     AuthorizationType: NONE
+  #     Integration:
+  #       IntegrationHttpMethod: POST
+  #       Type: AWS_PROXY
+  #       Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
 
-  # Lambda Permissions
+  # # Lambda Permissions
 
-  CustomerDataPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref getCustomerDataFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${parameterResolver.Outputs.restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/customer
+  # CustomerDataPermission:
+  #   Type: AWS::Lambda::Permission
+  #   Properties:
+  #     Action: lambda:InvokeFunction
+  #     FunctionName: !Ref getCustomerDataFunction
+  #     Principal: apigateway.amazonaws.com
+  #     SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${parameterResolver.Outputs.restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/customer

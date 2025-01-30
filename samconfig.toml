@@ -28,42 +28,20 @@ warm_containers = "EAGER"
 [default.local_start_lambda.parameters]
 warm_containers = "EAGER"
 
-[devate.deploy.parameters]
-stack_name = "devate-int-respondIo"
+[qarespond.deploy.parameters]
+stack_name = "qarespond-int-respondIo"
 resolve_s3 = true
-s3_prefix  = "devate-int-respondIo"
-region = "us-east-1"
+s3_prefix  = "qarespond-int-respondIo"
+region = "us-west-2"
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
 image_repositories = []
 confirm_changeset = true
-parameter_overrides = "Environment=\"dev\" integrationMainPath=\"respond-io\""
+parameter_overrides = "Environment=\"qa\" integrationMainPath=\"respond-io\""
 
-
-
-[qaate.deploy.parameters]
-stack_name = "qaate-int-respondIo"
+[prodrespond.deploy.parameters]
+stack_name = "prodrespond-int-respondIo"
 resolve_s3 = true
-s3_prefix  = "qaate-int-respondIo"
-region = "us-east-1"
-capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
-image_repositories = []
-confirm_changeset = true
-parameter_overrides = "Environment=\"qa\"integrationMainPath=\"respond-io\""
-
-[preprodate.deploy.parameters]
-stack_name = "preprodate-int-respondIo"
-resolve_s3 = true
-s3_prefix  = "preprodate-int-respondIo"
-region = "us-east-1"
-capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
-image_repositories = []
-confirm_changeset = true
-parameter_overrides = "Environment=\"preprod\"integrationMainPath=\"respond-io\""
-
-[prodate.deploy.parameters]
-stack_name = "prodate-int-respondIo"
-resolve_s3 = true
-s3_prefix  = "prodate-int-respondIo"
+s3_prefix  = "prodrespond-int-respondIo"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
 image_repositories = []
