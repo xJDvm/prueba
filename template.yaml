@@ -2,39 +2,26 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Connection to Initial Contact for Respond.IO
 
+### Mapeo para decidir el ambiente
+Mappings:
+  Environments:
+    prod:
+      Value: PRODUCCION
+    qa:
+      Value: QA
+###
+
+
 Parameters:
   Environment:
     Type: String
+    Default: qa
+    AllowedValues:
+      - prod
+      - qa
+    Description: Ambiente de la aplicacion.
 
-  # secretRespondIO:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Arn de secreto de credenciales para acceder a la base de datos.
-
-  # utilsIntelixLayerArn:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Arn de capa común con conexiones SQL, a secrets, etc.
-
-  # securityGroupLambda:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Security group lambda
-
-  # securityGroupProxy:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Security group proxy
-
-  # subnetIDs:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Lista de Ids de los grupos de seguridad de cada subnet desde donde
-  #     se puede acceder a la base de datos. Se recomienda al menos dos
-
-  # restApiIdInternal:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: API Id principal
-
-  # countryResource:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: Id del recurso del API
-
+##  Ruta base para consulta de articulos de la api compartida con Respond.io
   integrationMainPath:
     Type: String
     Description: Ruta base para consulta de articulos de la api compartida
@@ -42,18 +29,117 @@ Parameters:
 
 Resources:
 
-  parameterResolver:
-    Type: AWS::Serverless::Application
+
+#  parameterResolver:
+#    Type: AWS::Serverless::Application
+#    Properties:
+#      Location: parameter-resolver.yml
+#      Parameters:
+#        utilsIntelixLayerArn: !Sub /${Environment}/ate/parameters/layers/intelixpythonlayerutils
+#        secretRespondIO: !Sub /${Environment}/ate/parameters/common/postgres/app_respond_io
+#        securityGroupLambda: !Sub /${Environment}/ate/parameters/network/default-lambda-security-group
+#        securityGroupProxy: !Sub /${Environment}/ate/parameters/rds/rdsproxysg
+#        subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids
+#        restApiIdInternal: !Sub /${Environment}/ate/parameters/apigateway/restapiidinternal
+#        countryResource: !Sub /${Environment}/ate/parameters/apigateway/countryresourceinternal
+
+  SecretCommonPostgresTempFC:
+    Type: AWS::SecretsManager::Secret
     Properties:
-      Location: parameter-resolver.yml
-      Parameters:
-        utilsIntelixLayerArn: !Sub /${Environment}/ate/parameters/layers/intelixpythonlayerutils 
-        secretRespondIO: !Sub /${Environment}/ate/parameters/common/postgres/app_respond_io
-        securityGroupLambda: !Sub /${Environment}/ate/parameters/network/default-lambda-security-group
-        securityGroupProxy: !Sub /${Environment}/ate/parameters/rds/rdsproxysg
-        subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids
-        restApiIdInternal: !Sub /${Environment}/ate/parameters/apigateway/restapiidinternal
-        countryResource: !Sub /${Environment}/ate/parameters/apigateway/countryresourceinternal
+      # TODO: Change this to your secret name
+      Name: !Sub ate/${Environment}/common/postgres/temp/firstContact
+      Description: Secret for RDS Proxy connection
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "masteradmin", "engine": "aurora-postgresql"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: Ambiente
+          Value: !Ref Ambiente
+        - Key: TipoApoyoATE
+          Value: Indirecto
+        - Key: Proyecto
+          Value: ATE
+
+  SecretCommonPostgresOutputParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${Environment}/ate/parameters/common/cr/secret/postgres/temp
+      Type: String
+      Value: !Ref SecretCommonPostgresTempFC
+      Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
+
+  AuroraDBCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-postgresql
+      EngineVersion: 15.4
+      Port: 5432
+      EngineMode: provisioned
+      MasterUsername: !Sub '{{resolve:secretsmanager:${SecretCommonPostgresTempFC}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${SecretCommonPostgresTempFC}:SecretString:password}}'
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DBSecurityGroup
+      PreferredMaintenanceWindow: Sun:06:00-Sun:07:00
+
+  # Definir la instancia de Aurora
+  AuroraDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref AuroraDBCluster
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBInstanceClass: db.t3.medium
+      Engine: aurora-postgresql
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 31
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt DBPostgresMonitoringRoleTempFC.Arn
+      #Colocar en false a la hora de pasar a PROD
+      PubliclyAccessible: true
+
+  # Definir el grupo de subredes para el RDS
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for Aurora RDS
+      SubnetIds:
+        - subnet-7e8e1006
+        - subnet-508fe60d
+
+  # Definir el grupo de seguridad para el RDS
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Aurora RDS
+      VpcId: vpc-af2b26d7
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+          #CidrIp: 10.48.0.0/16
+
+  DBPostgresMonitoringRoleTempFC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - monitoring.rds.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+
+
+
+
+
 
   # Lambdas
   getCustomerDataFunction:
