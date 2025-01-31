@@ -139,19 +139,116 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
-
-  RestApiApplication:
-    Type: AWS::Serverless::Application
+  # Api para Respond.io
+  respondApiGateway:
+    Type: AWS::Serverless::Api  
     Properties:
-      Location: infrastructure/restapi.yml
-      Parameters:
-        ParentStack: !Ref AWS::StackName
-        Environment: !Ref Environment
-        Networkstack: !Ref NetworkApplication
-        VpcApiGatewayEndpointId: !Sub /${Environment}/respond/parameters/network/api-gateway-vpc-endpoint
+      StageName: Api
+    
+  ApiKey:
+    Type: 'AWS::ApiGateway::ApiKey'
+    Properties:
+      Name: !Sub ${Environment}-respondApiKey
+      Description: CloudFormation API Key V1
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref respondApiGateway
+          StageName: Api
+    DependsOn:
+      - respondApiGateway
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: Respond API Deployment
+      RestApiId: !Ref respondApiGateway
+      StageName: Api
+
+  ApiUsagePlan:
+    Type: 'AWS::ApiGateway::UsagePlan'
+    Properties:
+      ApiStages:
+        - ApiId: !Ref respondApiGateway
+          Stage: Api
+      Description: Usage plan for respond
+    DependsOn:
+      - ApiKey
+      - ApiDeployment
+        
+  ApiUsagePlanKey:
+    Type: 'AWS::ApiGateway::UsagePlanKey'
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ApiUsagePlan
+    DependsOn:
+      - ApiUsagePlan
+
+  # Secret Manager para almacenar el token del api
+  secretmanagertokenapi:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub /${Environment}/respond/secretmanagertokenapi
+      Description: secretmanagertokenapi
+      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement" }'
 
 
 
+  HealthCheckResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: health
+
+  HealthCheckMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref HealthCheckResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda}/invocations"
+  
+
+
+  # # Lambdas
+  HealthCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: HealthCheckFunction
+      Runtime: python3.12
+      Handler: lambda_handler.py
+      CodeUri: functions/health-check-function/
+      # Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 5
+      MemorySize: 128
+
+  # LambdaExecutionRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     RoleName: HealthCheckLambdaRole
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: lambda.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     Policies:
+  #       - PolicyName: LambdaBasicExecution
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - logs:CreateLogGroup
+  #                 - logs:CreateLogStream
+  #                 - logs:PutLogEvents
+  #               Resource: "*"
 
   # # Lambdas
   # getCustomerDataFunction:
