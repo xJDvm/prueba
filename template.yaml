@@ -43,6 +43,7 @@ Resources:
 #        restApiIdInternal: !Sub /${Environment}/respond/parameters/apigateway/restapiidinternal
 #        countryResource: !Sub /${Environment}/respond/parameters/apigateway/countryresourceinternal
 
+  # Secret
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -69,6 +70,8 @@ Resources:
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
 
+
+  # Definir el cluster de Aurora
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -120,6 +123,7 @@ Resources:
           CidrIp: 0.0.0.0/0
           #CidrIp: 10.48.0.0/16
 
+  # Definir el rol de monitoreo para el RDS
   DBPostgresMonitoringRoleTempFC:
     Type: AWS::IAM::Role
     Properties:
@@ -136,6 +140,15 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
 
+  RestApiApplication:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: infrastructure/restapi.yml
+      Parameters:
+        ParentStack: !Ref AWS::StackName
+        Environment: !Ref Environment
+        Networkstack: !Ref NetworkApplication
+        VpcApiGatewayEndpointId: !Sub /${Environment}/respond/parameters/network/api-gateway-vpc-endpoint
 
 
 
