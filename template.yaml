@@ -29,25 +29,9 @@ Parameters:
 
 Resources:
 
-
-#  parameterResolver:
-#    Type: AWS::Serverless::Application
-#    Properties:
-#      Location: parameter-resolver.yml
-#      Parameters:
-#        utilsIntelixLayerArn: !Sub /${Environment}/respond/parameters/layers/intelixpythonlayerutils
-#        secretRespondIO: !Sub /${Environment}/respond/parameters/common/postgres/app_respond_io
-#        securityGroupLambda: !Sub /${Environment}/respond/parameters/network/default-lambda-security-group
-#        securityGroupProxy: !Sub /${Environment}/respond/parameters/rds/rdsproxysg
-#        subnetIDs: !Sub /${Environment}/respond/parameters/network/subnet-ids
-#        restApiIdInternal: !Sub /${Environment}/respond/parameters/apigateway/restapiidinternal
-#        countryResource: !Sub /${Environment}/respond/parameters/apigateway/countryresourceinternal
-
-  # Secret
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
     Properties:
-      # TODO: Change this to your secret name
       Name: !Sub respond/${Environment}/common/postgres/temp/firstContact
       Description: Secret for RDS Proxy connection
       GenerateSecretString:
@@ -57,10 +41,7 @@ Resources:
         ExcludeCharacters: '"@/\'
       Tags:
         - Key: Ambiente
-          Value: !FindInMap
-            - Environments
-            - !Ref Environment
-            - Value
+          Value: !FindInMap [Environments, !Ref Environment, Value]
 
   SecretCommonPostgresOutputParameter:
     Type: AWS::SSM::Parameter
@@ -70,8 +51,6 @@ Resources:
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
 
-
-  # Definir el cluster de Aurora
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -86,7 +65,6 @@ Resources:
         - !Ref DBSecurityGroup
       PreferredMaintenanceWindow: Sun:06:00-Sun:07:00
 
-  # Definir la instancia de Aurora
   AuroraDBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -98,10 +76,8 @@ Resources:
       PerformanceInsightsRetentionPeriod: 31
       MonitoringInterval: 60
       MonitoringRoleArn: !GetAtt DBPostgresMonitoringRoleTempFC.Arn
-      #Colocar en false a la hora de pasar a PROD
       PubliclyAccessible: true
 
-  # Definir el grupo de subredes para el RDS
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -110,7 +86,6 @@ Resources:
         - subnet-7e8e1006
         - subnet-508fe60d
 
-  # Definir el grupo de seguridad para el RDS
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -121,9 +96,7 @@ Resources:
           FromPort: 5432
           ToPort: 5432
           CidrIp: 0.0.0.0/0
-          #CidrIp: 10.48.0.0/16
 
-  # Definir el rol de monitoreo para el RDS
   DBPostgresMonitoringRoleTempFC:
     Type: AWS::IAM::Role
     Properties:
@@ -139,12 +112,10 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
-  # Api para Respond.io
   respondApiGateway:
-    Type: AWS::Serverless::Api
+    Type: AWS::ApiGateway::RestApi
     Properties:
-      StageName: api
-
+      Name: !Sub ${AWS::StackName}-respond
 
   HealthCheckResource:
     Type: AWS::ApiGateway::Resource
@@ -152,8 +123,6 @@ Resources:
       RestApiId: !Ref respondApiGateway
       ParentId: !GetAtt respondApiGateway.RootResourceId
       PathPart: health
-    DependsOn:
-      - respondApiGateway
 
   HealthCheckMethod:
     Type: AWS::ApiGateway::Method
@@ -166,181 +135,80 @@ Resources:
       Integration:
         Type: AWS
         IntegrationHttpMethod: POST
-        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda}/invocations"
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations"
         IntegrationResponses:
           - StatusCode: '200'
-            ResponseTemplates:
-              application/json: "{\"message\": \"archivo json recibido\"}"
-        MethodResponses:
-          - StatusCode: '200'
-            ResponseModels:
-              application/json: Empty
-    DependsOn:
-      - respondApiGateway
-      - HealthCheckResource
-      - HealthCheckLambda
-
-
-  ApiKey:
-    Type: 'AWS::ApiGateway::ApiKey'
-    Properties:
-      Name: !Sub ${Environment}-respondApiKey
-      Description: CloudFormation API Key V1
-      Enabled: true
-      StageKeys:
-        - RestApiId: !Ref respondApiGateway
-          StageName: api
-    DependsOn:
-      - respondApiGateway
-      # - ApiDeployment
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseModels:
+            application/json: Empty
 
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
     Properties:
-      Description: Respond API Deployment
       RestApiId: !Ref respondApiGateway
       StageName: api
     DependsOn:
       - HealthCheckMethod
       - HealthCheckResource
 
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub ${Environment}-respondApiKey
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref respondApiGateway
+          StageName: api
+    DependsOn:
+      - respondApiGateway
+      - ApiDeployment
+
   ApiUsagePlan:
-    Type: 'AWS::ApiGateway::UsagePlan'
+    Type: AWS::ApiGateway::UsagePlan
     Properties:
       ApiStages:
         - ApiId: !Ref respondApiGateway
-          Stage: Api
+          Stage: api
       Description: Usage plan for respond
-    #DependsOn:
-      #- ApiKey
-      #- ApiDeployment
+    DependsOn:
+      - ApiKey
+      - ApiDeployment
 
   ApiUsagePlanKey:
-    Type: 'AWS::ApiGateway::UsagePlanKey'
+    Type: AWS::ApiGateway::UsagePlanKey
     Properties:
       KeyId: !Ref ApiKey
       KeyType: API_KEY
       UsagePlanId: !Ref ApiUsagePlan
-    #DependsOn:
-      #- ApiUsagePlan
+    DependsOn:
+      - ApiUsagePlan
+      - ApiDeployment
 
-  # Secret Manager para almacenar el token del api
   secretmanagertokenapi:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub /${Environment}/respond/secretmanagertokenapi
-      Description: secretmanagertokenapi
-      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement" }'
+      Description: Secret Manager Token API
+      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
 
-
-  # # Lambdas
   HealthCheckLambda:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: HealthCheckFunction
       Runtime: python3.12
-      Handler: lambda_handler.py
+      Handler: lambda_handler.lambda_handler
       CodeUri: functions/health-check-function/
-      # Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 5
       MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
 
-  # LambdaExecutionRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     RoleName: HealthCheckLambdaRole
-  #     AssumeRolePolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service: lambda.amazonaws.com
-  #           Action: sts:AssumeRole
-  #     Policies:
-  #       - PolicyName: LambdaBasicExecution
-  #         PolicyDocument:
-  #           Version: '2012-10-17'
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - logs:CreateLogGroup
-  #                 - logs:CreateLogStream
-  #                 - logs:PutLogEvents
-  #               Resource: "*"
+  CustomerDataPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HealthCheckLambda
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
-  # # Lambdas
-  # getCustomerDataFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     Timeout: 10
-  #     # Description:
-  #     CodeUri: functions/msate-get-customer-data/
-  #     Runtime: python3.12
-  #     Handler: lambda_function.lambda_handler
-  #     Environment:
-  #       Variables:
-  #         secretRespondIO: !GetAtt parameterResolver.Outputs.secretRespondIO
-  #     VpcConfig:
-  #       SubnetIds: !Split
-  #         - ','
-  #         - !GetAtt parameterResolver.Outputs.subnetIDs
-  #       SecurityGroupIds:
-  #         - !GetAtt parameterResolver.Outputs.securityGroupLambda
-  #         - !GetAtt parameterResolver.Outputs.securityGroupProxy
-  #     Policies:
-  #       - Statement:
-  #           - Effect: Allow
-  #             Action:
-  #               - secretsmanager:GetSecretValue
-  #             Resource: !GetAtt parameterResolver.Outputs.secretRespondIO
-  #     Layers:
-  #       - !GetAtt parameterResolver.Outputs.utilsIntelixLayerArn
-
-  # # Lambda Logs
-
-  # getCustomerDataLogGroup:
-  #   Type: AWS::Logs::LogGroup
-  #   DependsOn: getCustomerDataFunction
-  #   Properties:
-  #     LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
-  #     RetentionInDays: 30
-
-  # # Api Resource
-
-  # getCustomerDataResource:
-  #   Type: AWS::ApiGateway::Resource
-  #   Properties:
-  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-  #     ParentId: !GetAtt parameterResolver.Outputs.countryResource
-  #     PathPart: !Ref integrationMainPath
-
-  # CustomerDataResource:
-  #   Type: AWS::ApiGateway::Resource
-  #   Properties:
-  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-  #     ParentId: !Ref getCustomerDataResource
-  #     PathPart: customer
-
-  # # Api Method
-
-  # customerDataGetMethod:
-  #   Type: AWS::ApiGateway::Method
-  #   Properties:
-  #     RestApiId: !GetAtt parameterResolver.Outputs.restApiIdInternal
-  #     ResourceId: !Ref CustomerDataResource
-  #     HttpMethod: POST
-  #     AuthorizationType: NONE
-  #     Integration:
-  #       IntegrationHttpMethod: POST
-  #       Type: AWS_PROXY
-  #       Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getCustomerDataFunction.Arn}/invocations
-
-  # # Lambda Permissions
-
-  # CustomerDataPermission:
-  #   Type: AWS::Lambda::Permission
-  #   Properties:
-  #     Action: lambda:InvokeFunction
-  #     FunctionName: !Ref getCustomerDataFunction
-  #     Principal: apigateway.amazonaws.com
-  #     SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${parameterResolver.Outputs.restApiIdInternal}/*/POST/v1/*/${integrationMainPath}/customer
