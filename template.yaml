@@ -141,10 +141,46 @@ Resources:
 
   # Api para Respond.io
   respondApiGateway:
-    Type: AWS::Serverless::Api  
+    Type: AWS::Serverless::Api
     Properties:
-      StageName: Api
-    
+      StageName: api
+
+
+  HealthCheckResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: health
+    DependsOn:
+      - respondApiGateway
+
+  HealthCheckMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref HealthCheckResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda}/invocations"
+        IntegrationResponses:
+          - StatusCode: '200'
+            ResponseTemplates:
+              application/json: "{\"message\": \"archivo json recibido\"}"
+        MethodResponses:
+          - StatusCode: '200'
+            ResponseModels:
+              application/json: Empty
+    DependsOn:
+      - respondApiGateway
+      - HealthCheckResource
+      - HealthCheckLambda
+
+
   ApiKey:
     Type: 'AWS::ApiGateway::ApiKey'
     Properties:
@@ -153,16 +189,20 @@ Resources:
       Enabled: true
       StageKeys:
         - RestApiId: !Ref respondApiGateway
-          StageName: Api
-    #DependsOn:
-      #- respondApiGateway
+          StageName: api
+    DependsOn:
+      - respondApiGateway
+      # - ApiDeployment
 
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
     Properties:
       Description: Respond API Deployment
       RestApiId: !Ref respondApiGateway
-      StageName: Api
+      StageName: api
+    DependsOn:
+      - HealthCheckMethod
+      - HealthCheckResource
 
   ApiUsagePlan:
     Type: 'AWS::ApiGateway::UsagePlan'
@@ -174,7 +214,7 @@ Resources:
     #DependsOn:
       #- ApiKey
       #- ApiDeployment
-        
+
   ApiUsagePlanKey:
     Type: 'AWS::ApiGateway::UsagePlanKey'
     Properties:
@@ -191,28 +231,6 @@ Resources:
       Name: !Sub /${Environment}/respond/secretmanagertokenapi
       Description: secretmanagertokenapi
       SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement" }'
-
-
-
-  HealthCheckResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: health
-
-  HealthCheckMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref HealthCheckResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      Integration:
-        Type: AWS_PROXY
-        IntegrationHttpMethod: POST
-        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda}/invocations"
-  
 
 
   # # Lambdas
