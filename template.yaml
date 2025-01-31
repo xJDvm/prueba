@@ -154,8 +154,8 @@ Resources:
       StageKeys:
         - RestApiId: !Ref respondApiGateway
           StageName: Api
-    DependsOn:
-      - respondApiGateway
+    #DependsOn:
+      #- respondApiGateway
 
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
@@ -171,9 +171,9 @@ Resources:
         - ApiId: !Ref respondApiGateway
           Stage: Api
       Description: Usage plan for respond
-    DependsOn:
-      - ApiKey
-      - ApiDeployment
+    #DependsOn:
+      #- ApiKey
+      #- ApiDeployment
         
   ApiUsagePlanKey:
     Type: 'AWS::ApiGateway::UsagePlanKey'
@@ -181,8 +181,8 @@ Resources:
       KeyId: !Ref ApiKey
       KeyType: API_KEY
       UsagePlanId: !Ref ApiUsagePlan
-    DependsOn:
-      - ApiUsagePlan
+    #DependsOn:
+      #- ApiUsagePlan
 
   # Secret Manager para almacenar el token del api
   secretmanagertokenapi:
@@ -217,7 +217,7 @@ Resources:
 
   # # Lambdas
   HealthCheckLambda:
-    Type: AWS::Lambda::Function
+    Type: AWS::Serverless::Function
     Properties:
       FunctionName: HealthCheckFunction
       Runtime: python3.12
