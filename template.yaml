@@ -166,6 +166,13 @@ Resources:
       Description: Secret Manager Token API
       SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
 
+  RespondApiTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${Environment}/respond/parameters/common/cr/respond-api-token
+      Type: String
+      Value: "test"
+
   # Lambdas
 
   # # Health Check Lambda
@@ -276,3 +283,65 @@ Resources:
       FunctionName: !Ref getCustomerDataFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
+
+
+  # # keyword detection Lambda
+
+  recordConversationMessagesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-record-conversation
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-record-conversation/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+          RESPOND_API_TOKEN: !Sub '{{resolve:ssm:${RespondApiTokenParameter}}}'
+
+  recordConversationMessagesLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: recordConversationMessagesFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${recordConversationMessagesFunction}
+      RetentionInDays: 30
+
+  recordConversationMessagesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: record-conversation
+
+  recordConversationMessagesPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref recordConversationMessagesResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - LambdaArn: !GetAtt recordConversationMessagesFunction.Arn
+
+  recordConversationMessagesPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - recordConversationMessagesFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref recordConversationMessagesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*

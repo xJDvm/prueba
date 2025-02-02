@@ -5,9 +5,12 @@ import json
 def create_comment(message, contact):
     url_comment = f"https://api.respond.io/v2/contact/id:{contact}/comment"
 
+    respond_token = os.environ['RESPOND_API_TOKEN']
+
+
     headers = {
         "Accept": "application/json",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OTk3Miwic3BhY2VJZCI6MTgwMzI3LCJvcmdJZCI6MTgwNjcyLCJ0eXBlIjoiYXBpIiwiaWF0IjoxNzMxMDc1OTk1fQ.5B0D-TAwrs2jq5XmoUtHmr6NftmMKVVT3WBjXJLvnkg",  # Reemplaza con tu token real
+        "Authorization": f"Bearer {respond_token}",  # Usar la variable respond_token
         "Content-Type": "application/json"
     }
 

@@ -2,7 +2,7 @@ import os
 import re
 import json
 import requests
-from send_respond_comment import create_comment
+from .send_respond_comment import create_comment
 
 def normalize_text(text):
     return text.lower().encode('utf-8').decode('utf-8', 'ignore')
@@ -36,9 +36,11 @@ def keyword_checker(message, contact):
 
         url_contact = f"https://api.respond.io/v2/contact/id:{contact}"
 
+        respond_token = os.environ['RESPOND_API_TOKEN']
+
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {os.environ['RESPOND_API_TOKEN']}",  # Obtener el token de las variables de entorno
+            "Authorization": f"Bearer {respond_token}",  # Usar la variable respond_token
             "Content-Type": "application/json"
         }
 
@@ -49,7 +51,7 @@ def keyword_checker(message, contact):
             return {
                 "success": True,
                 "content_contact": response_contact.json(),
-                "content_comment": comment_response["content_comment"],
+                "content_comment": comment_response,
                 "keywords": found_keywords
             }
 
@@ -59,6 +61,3 @@ def keyword_checker(message, contact):
 
     else:
         return {"success": False, "message": "No se encontraron words clave"}
-
-respuesta = keyword_checker("Hola, no me llegó el pedido", '230625691')
-print(json.dumps(respuesta, indent=4))
