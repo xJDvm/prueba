@@ -117,32 +117,6 @@ Resources:
     Properties:
       Name: !Sub ${AWS::StackName}-respond
 
-  HealthCheckResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: health
-
-  HealthCheckMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref HealthCheckResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        Type: AWS
-        IntegrationHttpMethod: POST
-        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations"
-        IntegrationResponses:
-          - StatusCode: '200'
-      MethodResponses:
-        - StatusCode: '200'
-          ResponseModels:
-            application/json: Empty
-
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
     Properties:
@@ -192,6 +166,37 @@ Resources:
       Description: Secret Manager Token API
       SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
 
+  # Lambdas
+
+  # # Health Check Lambda
+
+  HealthCheckResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: health
+
+  HealthCheckMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref HealthCheckResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations"
+        IntegrationResponses:
+          - StatusCode: '200'
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseModels:
+            application/json: Empty
+
+
   HealthCheckLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -204,7 +209,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
 
-  CustomerDataPermission:
+  HealthCheckPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
@@ -212,3 +217,62 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
+  # # get customer data Lambda
+
+  getCustomerDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-get-customer-data
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-get-customer-data/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+
+  getCustomerDataLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: getCustomerDataFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
+      RetentionInDays: 30
+
+  getCustomerDataResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: customer-data
+
+  customerDataGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref getCustomerDataResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - LambdaArn: !GetAtt getCustomerDataFunction.Arn
+
+  CustomerDataPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - getCustomerDataFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref getCustomerDataFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
