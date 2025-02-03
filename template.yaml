@@ -21,6 +21,26 @@ Parameters:
       - qa
     Description: Ambiente de la aplicacion.
 
+  AccessKeyId:
+    Type: String
+    Description: Access Key ID for SMTP
+    Default: "default-access-key-id"
+
+  SecretAccessKey:
+    Type: String
+    Description: Secret Access Key for SMTP
+    Default: "default-secret-access-key"
+
+  Host:
+    Type: String
+    Description: SMTP Host
+    Default: "default-smtp-host"
+
+  Port:
+    Type: String
+    Description: SMTP Port
+    Default: "587"
+
 ##  Ruta base para consulta de articulos de la api compartida con Respond.io
   integrationMainPath:
     Type: String
@@ -28,6 +48,8 @@ Parameters:
     Default: respond-io
 
 Resources:
+
+## Secret Manager Postgres
 
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
@@ -51,6 +73,7 @@ Resources:
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
 
+## Aurora RDS
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -112,6 +135,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
+## API Gateway Respond
   respondApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
@@ -171,11 +195,11 @@ Resources:
     Properties:
       Name: !Sub /${Environment}/respond/parameters/common/cr/respond-api-token
       Type: String
-      Value: "test"
+      Value: "change-me"
 
-  # Lambdas
+## Lambdas
 
-  # # Health Check Lambda
+### Health Check Lambda
 
   HealthCheckResource:
     Type: AWS::ApiGateway::Resource
@@ -224,7 +248,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
-  # # get customer data Lambda
+### get customer data Lambda
 
   getCustomerDataFunction:
     Type: AWS::Serverless::Function
@@ -285,7 +309,7 @@ Resources:
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
 
-  # # keyword detection Lambda
+### keyword detection Lambda
 
   recordConversationMessagesFunction:
     Type: AWS::Serverless::Function
@@ -345,3 +369,62 @@ Resources:
       FunctionName: !Ref recordConversationMessagesFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
+
+
+## After hour notification
+
+  afterHourNotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-after-hour-notification
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-after-hour-notification/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: "*"
+
+
+  afterHourNotificationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${afterHourNotificationFunction}
+      RetentionInDays: 30
+
+  afterHourNotificationResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: after-hour-notification
+
+  afterHourNotificationPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref respondApiGateway
+      ResourceId: !Ref afterHourNotificationResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - LambdaArn: !GetAtt afterHourNotificationFunction.Arn
+
+  afterHourNotificationPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - afterHourNotificationFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref afterHourNotificationFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
+
