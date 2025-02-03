@@ -24,24 +24,24 @@ Parameters:
   AccessKeyId:
     Type: String
     Description: Access Key ID for SMTP
-    Default: "default-access-key-id"
+    Default: default-access-key-id
 
   SecretAccessKey:
     Type: String
     Description: Secret Access Key for SMTP
-    Default: "default-secret-access-key"
+    Default: default-secret-access-key
 
   Host:
     Type: String
     Description: SMTP Host
-    Default: "default-smtp-host"
+    Default: default-smtp-host
 
   Port:
     Type: String
     Description: SMTP Port
-    Default: "587"
+    Default: '587'
 
-##  Ruta base para consulta de articulos de la api compartida con Respond.io
+  ##  Ruta base para consulta de articulos de la api compartida con Respond.io
   integrationMainPath:
     Type: String
     Description: Ruta base para consulta de articulos de la api compartida
@@ -49,7 +49,7 @@ Parameters:
 
 Resources:
 
-## Secret Manager Postgres
+  ## Secret Manager Postgres
 
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
@@ -63,7 +63,10 @@ Resources:
         ExcludeCharacters: '"@/\'
       Tags:
         - Key: Ambiente
-          Value: !FindInMap [Environments, !Ref Environment, Value]
+          Value: !FindInMap
+            - Environments
+            - !Ref Environment
+            - Value
 
   SecretCommonPostgresOutputParameter:
     Type: AWS::SSM::Parameter
@@ -73,7 +76,7 @@ Resources:
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
 
-## Aurora RDS
+  ## Aurora RDS
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -135,7 +138,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
 
-## API Gateway Respond
+  ## API Gateway Respond
   respondApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
@@ -195,11 +198,11 @@ Resources:
     Properties:
       Name: !Sub /${Environment}/respond/parameters/common/cr/respond-api-token
       Type: String
-      Value: "change-me"
+      Value: change-me
 
-## Lambdas
+  ## Lambdas
 
-### Health Check Lambda
+  ### Health Check Lambda
 
   HealthCheckResource:
     Type: AWS::ApiGateway::Resource
@@ -219,14 +222,13 @@ Resources:
       Integration:
         Type: AWS
         IntegrationHttpMethod: POST
-        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations"
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations
         IntegrationResponses:
           - StatusCode: '200'
       MethodResponses:
         - StatusCode: '200'
           ResponseModels:
             application/json: Empty
-
 
   HealthCheckLambda:
     Type: AWS::Serverless::Function
@@ -248,7 +250,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
-### get customer data Lambda
+  ### get customer data Lambda
 
   getCustomerDataFunction:
     Type: AWS::Serverless::Function
@@ -295,7 +297,7 @@ Resources:
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
         Uri: !Sub
-          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
           - LambdaArn: !GetAtt getCustomerDataFunction.Arn
 
   CustomerDataPermission:
@@ -308,8 +310,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
-
-### keyword detection Lambda
+  ### keyword detection Lambda
 
   recordConversationMessagesFunction:
     Type: AWS::Serverless::Function
@@ -357,7 +358,7 @@ Resources:
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
         Uri: !Sub
-          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
           - LambdaArn: !GetAtt recordConversationMessagesFunction.Arn
 
   recordConversationMessagesPermission:
@@ -370,8 +371,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
 
-
-## After hour notification
+  ## After hour notification
 
   afterHourNotificationFunction:
     Type: AWS::Serverless::Function
@@ -387,8 +387,7 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: "*"
-
+              Resource: '*'
 
   afterHourNotificationLogGroup:
     Type: AWS::Logs::LogGroup
@@ -415,7 +414,7 @@ Resources:
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
         Uri: !Sub
-          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
           - LambdaArn: !GetAtt afterHourNotificationFunction.Arn
 
   afterHourNotificationPermission:
@@ -427,4 +426,21 @@ Resources:
       FunctionName: !Ref afterHourNotificationFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
+
+##  SQS 
+  respondSqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${Environment}-respond-sqs-queue
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
+
+  respondSqsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${Environment}-respond-sqs-dlq
+
+
 
