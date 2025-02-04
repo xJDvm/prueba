@@ -150,8 +150,8 @@ Resources:
       RestApiId: !Ref respondApiGateway
       StageName: api
     DependsOn:
-      - HealthCheckMethod
-      - HealthCheckResource
+      - RespondApiPostMethod
+      - RespondAPIResource
 
   ApiKey:
     Type: AWS::ApiGateway::ApiKey
@@ -204,31 +204,6 @@ Resources:
 
   ### Health Check Lambda
 
-  HealthCheckResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: health
-
-  HealthCheckMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref HealthCheckResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        Type: AWS
-        IntegrationHttpMethod: POST
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthCheckLambda.Arn}/invocations
-        IntegrationResponses:
-          - StatusCode: '200'
-      MethodResponses:
-        - StatusCode: '200'
-          ResponseModels:
-            application/json: Empty
 
   HealthCheckLambda:
     Type: AWS::Serverless::Function
@@ -278,27 +253,6 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
       RetentionInDays: 30
 
-  getCustomerDataResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: customer-data
-
-  customerDataGetMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref getCustomerDataResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub
-          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
-          - LambdaArn: !GetAtt getCustomerDataFunction.Arn
 
   CustomerDataPermission:
     Type: AWS::Lambda::Permission
@@ -339,27 +293,6 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${recordConversationMessagesFunction}
       RetentionInDays: 30
 
-  recordConversationMessagesResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: record-conversation
-
-  recordConversationMessagesPostMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref recordConversationMessagesResource
-      HttpMethod: POST
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub
-          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
-          - LambdaArn: !GetAtt recordConversationMessagesFunction.Arn
 
   recordConversationMessagesPermission:
     Type: AWS::Lambda::Permission
@@ -373,49 +306,6 @@ Resources:
 
   ## After hour notification
 
-  afterHourNotificationFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: respond-after-hour-notification
-      Runtime: python3.12
-      Handler: lambda_handler.lambda_handler
-      CodeUri: functions/respond-after-hour-notification/
-      Timeout: 30
-      MemorySize: 128
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: '*'
-
-  afterHourNotificationLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${afterHourNotificationFunction}
-      RetentionInDays: 30
-
-  afterHourNotificationResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ParentId: !GetAtt respondApiGateway.RootResourceId
-      PathPart: after-hour-notification
-
-  afterHourNotificationPostMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref respondApiGateway
-      ResourceId: !Ref afterHourNotificationResource
-      HttpMethod: POST
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub
-          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
-          - LambdaArn: !GetAtt afterHourNotificationFunction.Arn
 
   afterHourNotificationPermission:
     Type: AWS::Lambda::Permission
@@ -426,6 +316,11 @@ Resources:
       FunctionName: !Ref afterHourNotificationFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
+
+
+
+
+
 
 ##  SQS 
   respondSqsQueue:
@@ -443,4 +338,208 @@ Resources:
       QueueName: !Sub ${Environment}-respond-sqs-dlq
 
 
+### Creación de punto de contacto inicial para el webhook
+  ### Se crea un eventbus personalizado para estos mensajes. 
+  RespondEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: RespondEventBus
+
+
+
+  ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
+  ApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowPutEvents
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                  - events:PutEvent
+                Resource: !GetAtt RespondEventBus.Arn
+
+
+### Se crea un resource para el apigateway (/test)
+  RespondAPIResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: respond
+      RestApiId: !Ref respondApiGateway
+
+
+### Se crea el método post donde ocurre la "magia" de publicar al eventbridge. 
+  RespondApiPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ResourceId: !Ref RespondAPIResource
+      RestApiId: !Ref respondApiGateway
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      HttpMethod: POST
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+      RequestParameters:
+        method.request.header.X-Amz-Target: false
+        method.request.header.Content-Type: false
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt ApiGatewayRole.Arn
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: !Sub
+            - |
+              #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
+              #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
+              #set($inputRoot = $input.json('$'))
+              {
+                  "Entries": [
+                      {
+                          "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
+                          "DetailType": "EventBridge from APIGW",
+                          "EventBusName": "${EventBusName}",
+                          "Source": "respondio.webhook"
+                      }
+                  ]
+              }
+            - EventBusName: !Ref RespondEventBus
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              application/json: |-
+                #set($val = $input.path('$.Entries[0].EventId'))
+                {
+                  "response": "$val"
+                }
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
+              method.response.header.Access-Control-Allow-Methods: '''POST'''
+              method.response.header.Access-Control-Allow-Origin: '''*'''
+
+ ### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
+  RespondContactSNSCreated:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: RespondContactSNSCreated
+
+  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
+  ContactCreatedtoSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - contact.created
+      Targets:
+        - Arn: !Ref RespondContactSNSCreated
+          Id: ContactCreatedtoSNSRule
+
+
+### Se crea una politica que permite que eventbridge mande mensajes al SNS.
+  ContactCreatedEventToSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref RespondContactSNSCreated
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt ContactCreatedtoSNSRule.Arn
+      Topics:
+        - !Ref RespondContactSNSCreated
+
+### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+  RespondContactSNSCreatedSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: RespondContactSNSCreatedSQS
+      VisibilityTimeout: 60
+
+### Se subscribe el SQS al SNS
+  RespondContactSNSCreatedSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref RespondContactSNSCreated
+      Protocol: sqs
+      Endpoint: !GetAtt RespondContactSNSCreatedSQS.Arn
+
+### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
+  RespondContactSNSCreatedSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt RespondContactSNSCreatedSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref RespondContactSNSCreated
+      Queues:
+        - !Ref RespondContactSNSCreatedSQS     
+
+### Se crea una lambda llamada por el SQS Created Contact
+### Se un logroup para las lambdas
+  afterHourNotificationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/RespondContactSNSCreatedLambdaLogs
+      RetentionInDays: 30
+
+
+  afterHourNotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-after-hour-notification
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-after-hour-notification/
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      LoggingConfig:
+        LogGroup: !Ref afterHourNotificationLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt RespondContactSNSCreatedSQS.Arn
 
