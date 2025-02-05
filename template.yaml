@@ -264,45 +264,6 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/GET/*
 
-  ### keyword detection Lambda
-
-  recordConversationMessagesFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: respond-record-conversation
-      Runtime: python3.12
-      Handler: lambda_handler.lambda_handler
-      CodeUri: functions/respond-record-conversation/
-      Timeout: 30
-      MemorySize: 128
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-      Environment:
-        Variables:
-          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
-          RESPOND_API_TOKEN: !Sub '{{resolve:ssm:${RespondApiTokenParameter}}}'
-
-  recordConversationMessagesLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: recordConversationMessagesFunction
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${recordConversationMessagesFunction}
-      RetentionInDays: 30
-
-
-  recordConversationMessagesPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - recordConversationMessagesFunction
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref recordConversationMessagesFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
 
   ## After hour notification
 
@@ -443,22 +404,6 @@ Resources:
     Properties:
       TopicName: RespondContactSNSCreated
 
-  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
-  ContactCreatedtoSNSRule:
-    Type: AWS::Events::Rule
-    Properties:
-      EventBusName: !Ref RespondEventBus
-      EventPattern:
-        source:
-          - respondio.webhook
-        detail:
-          event_type:
-            - contact.created
-      Targets:
-        - Arn: !Ref RespondContactSNSCreated
-          Id: ContactCreatedtoSNSRule
-
-
 ### Se crea una politica que permite que eventbridge mande mensajes al SNS.
   ContactCreatedEventToSNSPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -475,6 +420,61 @@ Resources:
               aws:SourceArn: !GetAtt ContactCreatedtoSNSRule.Arn
       Topics:
         - !Ref RespondContactSNSCreated
+
+    ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
+  ContactCreatedtoSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - contact.created
+      Targets:
+        - Arn: !Ref RespondContactSNSCreated
+          Id: ContactCreatedtoSNSRule
+
+   ### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
+  MessageRecievedSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: MessageRecievedSNS
+
+  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
+  MessageRecievedSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - message.received
+      Targets:
+        - Arn: !Ref MessageRecievedSNS
+          Id: MessageRecievedSNSRule
+
+### Se crea una politica que permite que eventbridge mande mensajes al SNS.
+  MessageRecievedSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref MessageRecievedSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt MessageRecievedSNSRule.Arn
+      Topics:
+        - !Ref MessageRecievedSNS
+
+
 
 ### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
   RespondContactSNSCreatedSQS:
@@ -507,7 +507,42 @@ Resources:
             ArnEquals:
               aws:SourceArn: !Ref RespondContactSNSCreated
       Queues:
-        - !Ref RespondContactSNSCreatedSQS     
+        - !Ref RespondContactSNSCreatedSQS    
+
+
+
+  ### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+  KeywordsDetectedSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: KeywordsDetectedSNSSQS
+      VisibilityTimeout: 60
+
+### Se subscribe el SQS al SNS
+  KeywordsDetectedSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref MessageRecievedSNS
+      Protocol: sqs
+      Endpoint: !GetAtt KeywordsDetectedSNSSQS.Arn
+
+### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
+  KeywordsDetectedSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt KeywordsDetectedSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref MessageRecievedSNS
+      Queues:
+        - !Ref KeywordsDetectedSNSSQS   
 
 ### Se crea una lambda llamada por el SQS Created Contact
 ### Se un logroup para las lambdas
@@ -516,6 +551,17 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/RespondContactSNSCreatedLambdaLogs
       RetentionInDays: 30
+
+
+  afterHourNotificationPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - afterHourNotificationFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref afterHourNotificationFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
 
 
   afterHourNotificationFunction:
@@ -534,9 +580,9 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: '*'
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: '*'
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -545,3 +591,58 @@ Resources:
             FunctionResponseTypes:
               - ReportBatchItemFailures
 
+## Lambda con SQS de Record Conversation
+
+  KeywordsDetectedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-record-conversation
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-record-conversation/
+      Timeout: 30
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      LoggingConfig:
+        LogGroup: !Ref KeywordsDetectedLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: '*'
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt KeywordsDetectedSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+          RESPOND_API_TOKEN: !Sub '{{resolve:ssm:${RespondApiTokenParameter}}}'
+
+  KeywordsDetectedLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: KeywordsDetectedFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${KeywordsDetectedFunction}
+      RetentionInDays: 30
+
+
+  KeywordsDetectedPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - KeywordsDetectedFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref KeywordsDetectedFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${respondApiGateway}/*/POST/*
+
+  
