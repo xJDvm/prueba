@@ -542,4 +542,6 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt RespondContactSNSCreatedSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
 
