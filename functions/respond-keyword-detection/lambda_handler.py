@@ -1,7 +1,7 @@
 import json
+from respondfunctions.keyword_check import keyword_checker
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody import build_html
-from respondfunctions.request_contact import request_contact_info
 
 def lambda_handler(event, context):
 
@@ -13,36 +13,27 @@ def lambda_handler(event, context):
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
             data = message["detail"]
+            
             contact_name = data["contact"]["firstName"] + " " + data["contact"]["lastName"]
             contact_id = data["contact"]["id"]
+            message_text = data["message"]["message"]["text"]
             
-            result = request_contact_info(contact_id)
-            
-
-
+            result = keyword_checker(message_text, contact_id)
             
             if result["success"]:
-                content_contact = result['content_contact']
+                
+                keywords = ", ".join(result['keywords'])
                 
                 
-                agent_value = next((field['value'] for field in content_contact['custom_fields'] if field['name'] == 'agente'), None)
-                document_value = next((field['value'] for field in content_contact['custom_fields'] if field['name'] == 'numero_de_cedula'), None)
-
+                body = build_html(contact_name, contact_id, keywords)
                 
-                print("Agente:", agent_value)
-                print("Cedula:", document_value)
+                print(f"Palabra clave encontrada: '{keywords}' en el contacto con ID: {contact_id}")
                 
-                body = build_html(contact_name, contact_id, agent_value, document_value)
-            
-                print(body)
-                                
-                print("Content Contact:", content_contact)
-                # print(f"Palabra clave encontrada: {keywords} en el contacto con ID: {contact_id}")
                 sender = 'respond@arqintelix.biz'
                 recipient = 'jvaldes@intelix.biz'
-                subject = "Respond.io | Notificación de mensaje pendiente"
-                body_text = "Respond.io | Notificación de mensaje pendiente"
-                body_html = build_html(contact_name, contact_id, agent_value, document_value)
+                subject = f"Respond.io | Notificación palabra clave detectada"
+                body_text = "Respond.io | Notificación palabra clave detectada"
+                body_html = build_html(contact_name, contact_id, keywords)
 
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
