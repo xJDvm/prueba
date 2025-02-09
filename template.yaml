@@ -453,7 +453,7 @@ Resources:
       EventBusName: !Ref RespondEventBus
       EventPattern:
         source:
-          - respondio.httprequest
+          - respondio.webhook
         detail:
           event_type:
             - get.customer_data
