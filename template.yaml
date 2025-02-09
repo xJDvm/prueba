@@ -76,6 +76,24 @@ Resources:
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
 
+## Secret Manager Token API
+  secretmanagertokenapi:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub /${Environment}/respond/secretmanagertokenapi
+      Description: Secret Manager Token API
+      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
+
+  
+## Parameter Store
+  RespondApiTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${Environment}/respond/parameters/common/cr/respond-api-token
+      Type: String
+      Value: change-me
+
+
 ## Aurora RDS
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
@@ -186,23 +204,6 @@ Resources:
     DependsOn:
       - ApiUsagePlan
       - ApiDeployment
-
-  secretmanagertokenapi:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub /${Environment}/respond/secretmanagertokenapi
-      Description: Secret Manager Token API
-      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
-
-  
-## Parameter Store
-  RespondApiTokenParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub /${Environment}/respond/parameters/common/cr/respond-api-token
-      Type: String
-      Value: change-me
-
 
 
 ##  SQS 
@@ -320,6 +321,12 @@ Resources:
               method.response.header.Access-Control-Allow-Methods: '''POST'''
               method.response.header.Access-Control-Allow-Origin: '''*'''
 
+
+
+### Recursos SNS
+
+
+## ContactCreated SNS
 ### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
   RespondContactSNSCreated:
     Type: AWS::SNS::Topic
@@ -358,13 +365,13 @@ Resources:
         - Arn: !Ref RespondContactSNSCreated
           Id: ContactCreatedtoSNSRule
 
-### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
+
+## MessageRecievedSNS
   MessageRecievedSNS:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: MessageRecievedSNS
 
-  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
   MessageRecievedSNSRule:
     Type: AWS::Events::Rule
     Properties:
@@ -379,7 +386,6 @@ Resources:
         - Arn: !Ref MessageRecievedSNS
           Id: MessageRecievedSNSRule
 
-### Se crea una politica que permite que eventbridge mande mensajes al SNS.
   MessageRecievedSNSPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
@@ -396,13 +402,14 @@ Resources:
       Topics:
         - !Ref MessageRecievedSNS
 
-### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
+
+
+## AfterHourMessageSNS
   AfterHourMessageSNS:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: AfterHourMessageSNS
 
-  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
   AfterHourMessageSNSRule:
     Type: AWS::Events::Rule
     Properties:
@@ -417,7 +424,6 @@ Resources:
         - Arn: !Ref AfterHourMessageSNS
           Id: AfterHourMessageSNSRule
 
-### Se crea una politica que permite que eventbridge mande mensajes al SNS.
   AfterHourMessageSNSPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
@@ -434,13 +440,13 @@ Resources:
       Topics:
         - !Ref AfterHourMessageSNS
 
-### Se crea el SNS al que se subscriben los SQS de las lambdas ó lambdas directamente que necesitan escuchar cuando llegue un mensaje tipo Contact.Created .
+
+## RespondRequestSNS
   RespondRequestSNS:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: RespondRequestSNS
 
-  ### Se crea una regla que hace match con contacto creado en el eventbridge y se envía el mensaje al SNS
   RespondRequestSNSRule:
     Type: AWS::Events::Rule
     Properties:
@@ -455,7 +461,6 @@ Resources:
         - Arn: !Ref RespondRequestSNS
           Id: RespondRequestSNSRule
 
-### Se crea una politica que permite que eventbridge mande mensajes al SNS.
   RespondRequestSNSPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
@@ -472,14 +477,16 @@ Resources:
       Topics:
         - !Ref RespondRequestSNS
 
-  ### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+
+
+### Recursos SQS
+## RespondRequest SQS
   RespondRequestSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: RespondRequestSNSSQS
       VisibilityTimeout: 60
 
-### Se subscribe el SQS al SNS
   RespondRequestSNSSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
@@ -487,7 +494,6 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt RespondRequestSNSSQS.Arn
 
-### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
   RespondRequestSNSSQSSubscriptionPolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -505,14 +511,14 @@ Resources:
       Queues:
         - !Ref RespondRequestSNSSQS 
 
-### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+
+## RespondContactSQS
   RespondContactSNSCreatedSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: RespondContactSNSCreatedSQS
       VisibilityTimeout: 60
 
-### Se subscribe el SQS al SNS
   RespondContactSNSCreatedSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
@@ -520,7 +526,6 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt RespondContactSNSCreatedSQS.Arn
 
-### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
   RespondContactSNSCreatedSQSSubscriptionPolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -539,15 +544,13 @@ Resources:
         - !Ref RespondContactSNSCreatedSQS    
 
 
-
-  ### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+## KeywordsDetectedSQS
   KeywordsDetectedSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: KeywordsDetectedSNSSQS
       VisibilityTimeout: 60
 
-### Se subscribe el SQS al SNS
   KeywordsDetectedSNSSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
@@ -555,7 +558,6 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt KeywordsDetectedSNSSQS.Arn
 
-### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
   KeywordsDetectedSNSSQSSubscriptionPolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -574,14 +576,13 @@ Resources:
         - !Ref KeywordsDetectedSNSSQS   
 
 
-### Se crea un SQS  para subscribirlo al SNS para control de errores de la lambda. 
+## AfterHourMessageSQS
   AfterHourMessageSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: AfterHourMessageSNSSQS
       VisibilityTimeout: 60
 
-### Se subscribe el SQS al SNS
   AfterHourMessageSNSSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
@@ -589,7 +590,6 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt AfterHourMessageSNSSQS.Arn
 
-### Se crea una politica que permite publicar mensajes en el SQS desde el SNS
   AfterHourMessageSNSSQSSubscriptionPolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -606,6 +606,12 @@ Resources:
               aws:SourceArn: !Ref AfterHourMessageSNS
       Queues:
         - !Ref AfterHourMessageSNSSQS    
+
+
+
+
+
+
 
 ## Lambdas
 ##AfterHourNotification Lambda
