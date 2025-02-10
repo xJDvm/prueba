@@ -403,6 +403,43 @@ Resources:
         - !Ref MessageRecievedSNS
 
 
+## MessageSentSNS
+  MessageSentSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: MessageSentSNS
+
+  MessageSentSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - message.sent
+      Targets:
+        - Arn: !Ref MessageSentSNS
+          Id: MessageSentSNSRule
+
+  MessageSentSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref MessageSentSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt MessageSentSNSRule.Arn
+      Topics:
+        - !Ref MessageSentSNS
+
+
 
 ## AfterHourMessageSNS
   AfterHourMessageSNS:
@@ -576,6 +613,72 @@ Resources:
         - !Ref KeywordsDetectedSNSSQS   
 
 
+## SaveMessageReceivedToDatabaseSQS
+  SaveMessageReceivedToDatabaseSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SaveMessageReceivedToDatabaseSNSSQS
+      VisibilityTimeout: 60
+
+  SaveMessageReceivedToDatabaseSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref MessageRecievedSNS
+      Protocol: sqs
+      Endpoint: !GetAtt SaveMessageReceivedToDatabaseSNSSQS.Arn
+
+  SaveMessageReceivedToDatabaseSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt SaveMessageReceivedToDatabaseSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref MessageRecievedSNS
+      Queues:
+        - !Ref SaveMessageReceivedToDatabaseSNSSQS   
+
+
+
+#SaveMessageSentToDatabaseSQS
+  SaveMessageSentToDatabaseSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SaveMessageSentToDatabaseSNSSQS
+      VisibilityTimeout: 60
+
+  SaveMessageSentToDatabaseSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref MessageSentSNS
+      Protocol: sqs
+      Endpoint: !GetAtt SaveMessageSentToDatabaseSNSSQS.Arn
+
+  SaveMessageSentToDatabaseSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt SaveMessageSentToDatabaseSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref MessageSentSNS
+      Queues:
+        - !Ref SaveMessageSentToDatabaseSNSSQS   
+
+
+
 ## AfterHourMessageSQS
   AfterHourMessageSNSSQS:
     Type: AWS::SQS::Queue
@@ -731,6 +834,75 @@ Resources:
     DependsOn: getCustomerDataFunction
     Properties:
       LogGroupName: !Sub /aws/lambda/${Environment}/GetCustomerDataLogGroup
+      RetentionInDays: 30
+
+
+## SaveMessageReceivedToDatabase Lambda
+  SaveMessageReceivedToDatabaseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-save-message-received
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-save-message-received/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SaveMessageReceivedToDatabaseSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+
+  SaveMessageReceivedToDatabaseLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: SaveMessageReceivedToDatabaseFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${Environment}/SaveMessageReceivedToDatabaseLogGroup
+      RetentionInDays: 30
+
+## SaveMessageSentToDatabase Lambda
+  SaveMessageSentToDatabaseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-save-message-sent
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-save-message-sent/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SaveMessageSentToDatabaseSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+
+  SaveMessageSentToDatabaseLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: SaveMessageSentToDatabaseFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${Environment}/SaveMessageSentToDatabaseLogGroup
       RetentionInDays: 30
 
 
