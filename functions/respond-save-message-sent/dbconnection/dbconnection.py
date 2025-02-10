@@ -1,28 +1,28 @@
 import json
 import psycopg2
 import os
-# from dbconnection.secretManager import getSecret
-# from dbconnection.secretArn import getArn
+from dbconnection.secretManager import getSecret
+from dbconnection.secretArn import getArn
 
 def connect():
     try:
         # Obtener el ARN del secreto
-        # secret_name = getArn()
+        secret_name = getArn()
 
-        # # Obtener las credenciales de la base de datos desde AWS Secrets Manager
-        # secret_value = getSecret(os.environ['AWS_REGION'], secret_name)
+        # Obtener las credenciales de la base de datos desde AWS Secrets Manager
+        secret_value = getSecret(os.environ['AWS_REGION'], secret_name)
 
 
 
         # Parsear el secreto como JSON
-        # credentials = json.loads(secret_value)
+        credentials = json.loads(secret_value)
 
         # Conexión a la base de datos
         conn = psycopg2.connect(
-            dbname='datalakeprd',
-            user='masteradmin',
-            password='J|7FG1lBX,QAI3ud',
-            host='qarespond-int-respondio-auroradbinstance-lvealsayg0mo.cfrypzdu8hoe.us-west-2.rds.amazonaws.com'
+            dbname=credentials['dbname'],
+            user=credentials['username'],
+            password=credentials['password'],
+            host=credentials['host']
         )
         print("Database connection successful")  # Debug
 
