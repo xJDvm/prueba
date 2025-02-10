@@ -9,6 +9,7 @@ def handle_text_message(data):
     contact_id = data["contact"]["id"]
     assignado_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
+    message_classification = data["event_type"]
     timestamp = data["message"]["timestamp"]
     text_message = data["message"]["message"]["text"]
     channel_id = data["channel"]["id"]
@@ -21,10 +22,10 @@ def handle_text_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, timestamp, message_type, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, timestamp, message_type, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition))
     conn.commit()
     cursor.close()
     conn.close()
@@ -34,6 +35,7 @@ def handle_attachment_message(data):
     contact_id = data["contact"]["id"]
     assignado_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
+    message_classification = data["event_type"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
     filename = data["message"]["message"]["attachment"]["fileName"]
@@ -48,10 +50,10 @@ def handle_attachment_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, timestamp, message_type, filename, url, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, filename, url, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, timestamp, message_type, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition))
     conn.commit()
     cursor.close()
     conn.close()
@@ -65,6 +67,7 @@ def handle_location_message(data):
     contact_id = data["contact"]["id"]
     assignado_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
+    message_classification = data["event_type"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
     message_type = data["message"]["message"]["type"]
@@ -79,10 +82,10 @@ def handle_location_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, timestamp, message_type, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, timestamp, message_type, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition))
     conn.commit()
     cursor.close()
     conn.close()

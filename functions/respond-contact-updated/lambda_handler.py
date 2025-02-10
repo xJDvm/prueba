@@ -5,13 +5,13 @@ from dbconnection.dbconnection import connect
 
 
 def handle_create_contact(data):
-    contact_id = data["contact"]["id"]
+    contact_id = str(data["contact"]["id"])
     firstname = data["contact"]["firstName"]
     lastname = data["contact"]["lastName"]
     phone = data["contact"]["phone"]
     email = data["contact"]["email"]
     status = data["contact"]["status"]
-    assignee_id = data["contact"]["assignee"]["id"]
+    assignee_id = str(data["contact"]["assignee"]["id"])
     assignee_firstname = data["contact"]["assignee"]["firstName"]
     assignee_lastname = data["contact"]["assignee"]["lastName"]
     assignee_email = data["contact"]["assignee"]["email"]
@@ -22,11 +22,31 @@ def handle_create_contact(data):
 
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # Buscar el contacto en la tabla respond_io.contacts
+    select_query = "SELECT * FROM respond_io.contacts WHERE contact_id = %s"
+    cursor.execute(select_query, (contact_id,))
+    contact = cursor.fetchone()
+
+    if contact:
+        # Mover el contacto a la tabla respond_io.contacts_moved
+        move_query = """
+            INSERT INTO respond_io.contacts_moved (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Moved')
+        """
+        cursor.execute(move_query, (contact['contact_id'], contact['firstname'], contact['lastname'], contact['phone'], contact['email'], contact['status'], contact['assignee_id'], contact['assignee_firstname'], contact['assignee_lastname'], contact['assignee_email'], contact['dl_created_at'], contact['dl_modified_at']))
+        
+        # Eliminar el contacto de la tabla respond_io.contacts
+        delete_query = "DELETE FROM respond_io.contacts WHERE contact_id = %s"
+        cursor.execute(delete_query, (contact_id,))
+
+    # Insertar la nueva data en la tabla respond_io.contacts
     insert_query = """
         INSERT INTO respond_io.contacts (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     cursor.execute(insert_query, (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition))
+    
     conn.commit()
     cursor.close()
     conn.close()
