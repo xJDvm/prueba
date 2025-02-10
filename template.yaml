@@ -162,6 +162,33 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: !Sub ${AWS::StackName}-respond
+      Policy: !Sub |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "execute-api:Invoke",
+                "Resource": "arn:aws:execute-api:us-west-2:054670858840:9vefhxvgeb/*/*/*"
+              },
+              {
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "execute-api:Invoke",
+                "Resource": "arn:aws:execute-api:us-west-2:054670858840:9vefhxvgeb/*/*/*",
+                "Condition": {
+                  "NotIpAddress": {
+                    "aws:SourceIp": [
+                      "52.74.35.155/32",
+                      "18.138.31.163/32",
+                      "54.169.155.20/32",
+                      "190.120.253.223/32"]
+                  }
+                }
+              }
+            ]
+          }
 
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
@@ -272,7 +299,7 @@ Resources:
       ResourceId: !Ref RespondAPIResource
       RestApiId: !Ref respondApiGateway
       AuthorizationType: NONE
-      ApiKeyRequired: true
+      # ApiKeyRequired: true
       HttpMethod: POST
       MethodResponses:
         - StatusCode: 200
