@@ -906,6 +906,42 @@ Resources:
       RetentionInDays: 30
 
 
+## ContactCreated Lambda
+  ContactCreatedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: respond-contact-created
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-contact-created/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt RespondContactSNSCreatedSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresOutputParameter
+
+  ContactCreatedLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: ContactCreatedFunction
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${Environment}/ContactCreatedLogGroup
+      RetentionInDays: 30
+
+
+
 ## HealthCheck Lambda
   HealthCheckLambda:
     Type: AWS::Serverless::Function
