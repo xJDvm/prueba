@@ -10,7 +10,7 @@ def handle_create_contact(data):
     lastname = data["contact"]["lastName"]
     phone = data["contact"]["phone"]
     email = data["contact"]["email"]
-    status = data["contact"]["status"]
+    # status = data["contact"]["status"]
     assignee_id = str(data["contact"]["assignee"]["id"])
     assignee_firstname = data["contact"]["assignee"]["firstName"]
     assignee_lastname = data["contact"]["assignee"]["lastName"]
@@ -31,10 +31,10 @@ def handle_create_contact(data):
     if contact:
         # Mover el contacto a la tabla respond_io.contacts_moved
         move_query = """
-            INSERT INTO respond_io.contacts_moved (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Moved')
+            INSERT INTO respond_io.contacts_moved (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Moved')
         """
-        cursor.execute(move_query, (contact['contact_id'], contact['firstname'], contact['lastname'], contact['phone'], contact['email'], contact['status'], contact['assignee_id'], contact['assignee_firstname'], contact['assignee_lastname'], contact['assignee_email'], contact['dl_created_at'], contact['dl_modified_at']))
+        cursor.execute(move_query, (contact['contact_id'], contact['firstname'], contact['lastname'], contact['phone'], contact['email'], contact['assignee_id'], contact['assignee_firstname'], contact['assignee_lastname'], contact['assignee_email'], contact['dl_created_at'], contact['dl_modified_at']))
         
         # Eliminar el contacto de la tabla respond_io.contacts
         delete_query = "DELETE FROM respond_io.contacts WHERE contact_id = %s"
@@ -42,10 +42,10 @@ def handle_create_contact(data):
 
     # Insertar la nueva data en la tabla respond_io.contacts
     insert_query = """
-        INSERT INTO respond_io.contacts (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.contacts (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, dl_created_at, dl_modified_at, dl_condition))
     
     conn.commit()
     cursor.close()
