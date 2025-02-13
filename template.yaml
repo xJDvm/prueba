@@ -841,8 +841,8 @@ Resources:
             Action: ses:SendEmail
             Resource: '*'
           - Effect: Allow
-            Action: ssm:GetParameter
-            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -852,7 +852,7 @@ Resources:
               - ReportBatchItemFailures
       Environment:
         Variables:
-          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+          secretRespondIO: !Ref SecretCommonPostgresTempFC  
 
 
 ## KeywordsDetected Lambda

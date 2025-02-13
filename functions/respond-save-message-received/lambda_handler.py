@@ -50,8 +50,10 @@ def handle_text_message(data):
     message_type = data["event_type"]
     message_datatype = data["message"]["message"]["type"]
     
-    data_json = json.dumps(data)
+    # Convertir el timestamp de milisegundos a segundos y luego a datetime
+    message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
+    data_json = json.dumps(data)
     
     mark_after_hours = False
     
@@ -68,10 +70,10 @@ def handle_text_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()
@@ -90,7 +92,18 @@ def handle_attachment_message(data):
     message_type = data["event_type"]
     message_datatype = data["message"]["message"]["attachment"]["type"]
     
+    
+    # Convertir el timestamp de milisegundos a segundos y luego a datetime
+    message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    
     data_json = json.dumps(data)
+    
+    
+    mark_after_hours = False
+    within_business_hours = is_within_business_hours(timestamp)
+    
+    if not within_business_hours:
+        mark_after_hours = True
     
     dl_created_at = datetime.now().isoformat()
     dl_modified_at = datetime.now().isoformat()
@@ -99,10 +112,10 @@ def handle_attachment_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, filename, url, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()
@@ -125,7 +138,16 @@ def handle_location_message(data):
     address = data["message"]["message"]["address"]
     message_datatype = data["message"]["message"]["type"]
     
+    # Convertir el timestamp de milisegundos a segundos y luego a datetime
+    message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    
     data_json = json.dumps(data)
+    
+    mark_after_hours = False
+    within_business_hours = is_within_business_hours(timestamp)
+    
+    if not within_business_hours:
+        mark_after_hours = True
     
     dl_created_at = datetime.now().isoformat()
     dl_modified_at = datetime.now().isoformat()
@@ -134,10 +156,10 @@ def handle_location_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, latitude, longitude, address, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()

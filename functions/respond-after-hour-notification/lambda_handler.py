@@ -14,18 +14,17 @@ def get_photos_after_time(conn, current_time):
         
         # Convertir la hora actual a timestamp
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        ten_minutes_after = current_time_dt + timedelta(minutes=10)
-        ten_minutes_after_timestamp = int(ten_minutes_after.timestamp() * 1000)
+        ten_minutes_after = current_time_dt + timedelta(minutes=1)
         
         select_query = """
         SELECT url 
         FROM respond_io.messages 
         WHERE message_classification = 'message.received' 
         AND message_type = 'image' 
-        AND timestamp_column > %s
+        AND message_timestamp > %s
         """
         
-        cursor.execute(select_query, (ten_minutes_after_timestamp,))
+        cursor.execute(select_query, (ten_minutes_after,))
         rows = cursor.fetchall()
         
         photos = [row['url'] for row in rows]
@@ -44,18 +43,17 @@ def get_messages_after_time(conn, current_time):
         
         # Convertir la hora actual a timestamp
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        ten_minutes_after = current_time_dt + timedelta(minutes=10)
-        ten_minutes_after_timestamp = int(ten_minutes_after.timestamp() * 1000)
+        ten_minutes_after = current_time_dt + timedelta(minutes=1)
         
         select_query = """
         SELECT text_message 
         FROM respond_io.messages 
         WHERE message_classification = 'message.received' 
         AND message_type = 'text' 
-        AND timestamp_column > %s
+        AND message_timestamp > %s
         """
         
-        cursor.execute(select_query, (ten_minutes_after_timestamp,))
+        cursor.execute(select_query, (ten_minutes_after,))
         rows = cursor.fetchall()
         
         messages = [row['text_message'] for row in rows]
@@ -67,6 +65,7 @@ def get_messages_after_time(conn, current_time):
     except Exception as ex:
         print(f"Error: {ex}")
         return ""
+
 
 def lambda_handler(event, context):
 
@@ -81,11 +80,13 @@ def lambda_handler(event, context):
             contact_name = data["firstName"] + " " + data["lastName"]
             contact_id = data["id"]
             
-            
-            if data["store"]:
+            # Verificar si el dato 'store' está presente en el cuerpo del mensaje
+            if 'store' in data:
                 
                 conn = connect()
                 current_time = data["time"]
+                
+                print("Hora actual:", current_time)
                 messages_array = get_messages_after_time(conn, current_time)
                 photos_array = get_photos_after_time(conn, current_time)
                 print(photos_array)
@@ -114,7 +115,7 @@ def lambda_handler(event, context):
                 }
                 
                 body = build_html_store(e)
-                print(body)
+                # print(body)
                 
                 sender = 'respond@arqintelix.biz'
                 recipient = 'jvaldes@intelix.biz'
