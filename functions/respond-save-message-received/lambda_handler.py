@@ -4,6 +4,40 @@ import datetime
 from dbconnection.dbconnection import connect
 from lambda_response import lambda_response
 from status_http import HttpStatus
+from datetime import datetime, timezone, timedelta
+
+def is_within_business_hours(timestamp):
+    # Convertir el timestamp de milisegundos a datetime en UTC
+    message_datetime = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    
+    # Convertir a hora local de Costa Rica (UTC-6)
+    costa_rica_tz = timezone(timedelta(hours=-6))
+    message_datetime = message_datetime.astimezone(costa_rica_tz)
+    
+    # Obtener el día de la semana y la hora en Costa Rica
+    day_of_week = message_datetime.strftime('%A')  # Ejemplo: 'Monday'
+    time_of_day = message_datetime.time()  # Ejemplo: 14:30:00
+    
+    conn = connect()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    select_query = """
+        SELECT *
+        FROM respond_io.business_hours
+        WHERE day_of_week = %s
+        AND is_closed = FALSE
+        AND %s BETWEEN open_time AND close_time
+    """
+    
+    cursor.execute(select_query, (day_of_week, time_of_day))
+    row = cursor.fetchone()
+    
+    if row:
+        print("Mensaje dentro de horario")
+        return True
+    else:
+        print("Mensaje fuera de horario")
+        return False
+
 
 def handle_text_message(data):
     contact_id = data["contact"]["id"]
@@ -19,17 +53,25 @@ def handle_text_message(data):
     data_json = json.dumps(data)
     
     
-    dl_created_at = datetime.datetime.now().isoformat()
-    dl_modified_at = datetime.datetime.now().isoformat()
+    mark_after_hours = False
+    
+    within_business_hours = is_within_business_hours(timestamp)
+    
+    if not within_business_hours:
+        mark_after_hours = True
+    
+    
+    dl_created_at = datetime.now().isoformat()
+    dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
 
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json))
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, timestamp, message_type, message_datatype, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()
@@ -50,8 +92,8 @@ def handle_attachment_message(data):
     
     data_json = json.dumps(data)
     
-    dl_created_at = datetime.datetime.now().isoformat()
-    dl_modified_at = datetime.datetime.now().isoformat()
+    dl_created_at = datetime.now().isoformat()
+    dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
     conn = connect()
@@ -85,8 +127,8 @@ def handle_location_message(data):
     
     data_json = json.dumps(data)
     
-    dl_created_at = datetime.datetime.now().isoformat()
-    dl_modified_at = datetime.datetime.now().isoformat()
+    dl_created_at = datetime.now().isoformat()
+    dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
     conn = connect()
