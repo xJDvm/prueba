@@ -256,6 +256,10 @@ Resources:
     Properties:
       Name: RespondEventBus
 
+  RespondWorkflowEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: RespondWorkflowEventBus
 
 
   ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
@@ -281,6 +285,30 @@ Resources:
                   - events:PutEvents
                   - events:PutEvent
                 Resource: !GetAtt RespondEventBus.Arn
+
+ ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
+  ApiGatewayRoleWorkflow:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowPutEvents
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                  - events:PutEvent
+                Resource: !GetAtt RespondWorkflowEventBus.Arn
 
 
 ### Se crea un resource para el apigateway (/test)
@@ -348,6 +376,71 @@ Resources:
               method.response.header.Access-Control-Allow-Methods: '''POST'''
               method.response.header.Access-Control-Allow-Origin: '''*'''
 
+
+  RespondWorkflowAPIResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: workflow
+      RestApiId: !Ref respondApiGateway
+
+
+### Se crea el método post donde ocurre la "magia" de publicar al eventbridge. 
+  RespondWorkflowApiPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ResourceId: !Ref RespondWorkflowAPIResource
+      RestApiId: !Ref respondApiGateway
+      AuthorizationType: NONE
+      # ApiKeyRequired: true
+      HttpMethod: POST
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+      RequestParameters:
+        method.request.header.X-Amz-Target: false
+        method.request.header.Content-Type: false
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt ApiGatewayRoleWorkflow.Arn
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: !Sub
+            - |
+              #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
+              #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
+              #set($inputRoot = $input.json('$'))
+              {
+                  "Entries": [
+                      {
+                          "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
+                          "DetailType": "EventBridge from APIGW",
+                          "EventBusName": "${EventBusName}",
+                          "Source": "respondio.webhook",
+                          "IsWorkflow": true
+                      }
+                  ]
+              }
+            - EventBusName: !Ref RespondWorkflowEventBus
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              application/json: |-
+                #set($val = $input.path('$.Entries[0].EventId'))
+                {
+                  "response": "$val"
+                }
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
+              method.response.header.Access-Control-Allow-Methods: '''POST'''
+              method.response.header.Access-Control-Allow-Origin: '''*'''
 
 
 ### Recursos SNS
@@ -655,7 +748,81 @@ Resources:
 
 
 
+## SaveOutgoingMessagesFromWorkflowSNS
+  SaveOutgoingMessagesFromWorkflowSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SaveOutgoingMessagesFromWorkflowSNS
+
+  SaveOutgoingMessagesFromWorkflowSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondWorkflowEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          IsWorkflow:
+            - true
+          event_type:
+            - message.sent
+      Targets:
+        - Arn: !Ref SaveOutgoingMessagesFromWorkflowSNS
+          Id: SaveOutgoingMessagesFromWorkflowSNSRule
+
+  SaveOutgoingMessagesFromWorkflowSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref SaveOutgoingMessagesFromWorkflowSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt SaveOutgoingMessagesFromWorkflowSNSRule.Arn
+      Topics:
+        - !Ref SaveOutgoingMessagesFromWorkflowSNS
+
+
+
+
+
 ### Recursos SQS
+## SaveOutgoingMessagesFromWorkflow SQS
+  SaveOutgoingMessagesFromWorkflowSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SaveOutgoingMessagesFromWorkflowSNSSQS
+      VisibilityTimeout: 60
+
+  SaveOutgoingMessagesFromWorkflowSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SaveOutgoingMessagesFromWorkflowSNS
+      Protocol: sqs
+      Endpoint: !GetAtt SaveOutgoingMessagesFromWorkflowSNSSQS.Arn
+
+  SaveOutgoingMessagesFromWorkflowSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt SaveOutgoingMessagesFromWorkflowSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref SaveOutgoingMessagesFromWorkflowSNS
+      Queues:
+        - !Ref SaveOutgoingMessagesFromWorkflowSNSSQS 
+
+
 ## RespondRequest SQS
   RespondRequestSNSSQS:
     Type: AWS::SQS::Queue
@@ -1269,6 +1436,42 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${ConversationClosedFunction}
       RetentionInDays: 30
+
+
+
+## SaveOutgoingMessagesFromWorkflow Lambda
+  SaveOutgoingMessagesFromWorkflowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-save-message-sent-workflow
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-save-message-sent-workflow/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SaveOutgoingMessagesFromWorkflowSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  SaveOutgoingMessagesFromWorkflowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SaveOutgoingMessagesFromWorkflowFunction}
+      RetentionInDays: 30
+
 
 
 
