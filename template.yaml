@@ -397,7 +397,7 @@ Resources:
   ContactUpdatedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ContactUpdateddSNS
+      TopicName: ContactUpdatedSNS
 
   ContactUpdatedSNSRule:
     Type: AWS::Events::Rule
@@ -428,6 +428,80 @@ Resources:
               aws:SourceArn: !GetAtt ContactUpdatedSNSRule.Arn
       Topics:
         - !Ref ContactUpdatedSNS
+
+
+## ConversationOpenedSNS
+  ConversationOpenedSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ConversationOpenedSNS
+
+  ConversationOpenedSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - conversation.opened
+      Targets:
+        - Arn: !Ref ConversationOpenedSNS
+          Id: ConversationOpenedSNSRule
+
+  ConversationOpenedSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref ConversationOpenedSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt ConversationOpenedSNSRule.Arn
+      Topics:
+        - !Ref ConversationOpenedSNS
+
+
+## ConversationClosedSNS
+  ConversationClosedSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ConversationClosedSNS
+
+  ConversationClosedSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - conversation.closed
+      Targets:
+        - Arn: !Ref ConversationClosedSNS
+          Id: ConversationClosedSNSRule
+
+  ConversationClosedSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref ConversationClosedSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt ConversationClosedSNSRule.Arn
+      Topics:
+        - !Ref ConversationClosedSNS
 
 
 
@@ -678,6 +752,71 @@ Resources:
         - !Ref ContactUpdatedSNSSQS   
 
 
+## ConversationOpenedSQS
+  ConversationOpenedSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ConversationOpenedSNSSQS
+      VisibilityTimeout: 60
+
+  ConversationOpenedSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref ConversationOpenedSNS
+      Protocol: sqs
+      Endpoint: !GetAtt ConversationOpenedSNSSQS.Arn
+
+  ConversationOpenedSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt ConversationOpenedSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref ConversationOpenedSNS
+      Queues:
+        - !Ref ConversationOpenedSNSSQS   
+
+
+## ConversationClosedSQS
+  ConversationClosedSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ConversationClosedNSSQS
+      VisibilityTimeout: 60
+
+  ConversationClosedSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref ConversationClosedSNS
+      Protocol: sqs
+      Endpoint: !GetAtt ConversationClosedSNSSQS.Arn
+
+  ConversationClosedSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt ConversationClosedSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref ConversationClosedSNS
+      Queues:
+        - !Ref ConversationClosedSNSSQS   
+
+
+
 ## KeywordsDetectedSQS
   KeywordsDetectedSNSSQS:
     Type: AWS::SQS::Queue
@@ -818,13 +957,13 @@ Resources:
   afterHourNotificationLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/AfterHourLambdaLogs
+      LogGroupName: !Sub /aws/lambda/${afterHourNotificationFunction}
       RetentionInDays: 30
 
   afterHourNotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-after-hour-notification
+      FunctionName: !Sub ${Environment}-respond-after-hour-notification
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-after-hour-notification/
@@ -832,8 +971,6 @@ Resources:
       MemorySize: 128
       Architectures:
         - x86_64
-      LoggingConfig:
-        LogGroup: !Ref afterHourNotificationLogGroup
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
@@ -859,7 +996,7 @@ Resources:
   KeywordsDetectedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-keyword-detection
+      FunctionName: !Sub ${Environment}-respond-keyword-detection
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-keyword-detection/
@@ -867,8 +1004,6 @@ Resources:
       MemorySize: 128
       Architectures:
         - x86_64
-      LoggingConfig:
-        LogGroup: !Ref KeywordsDetectedLogGroup
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
@@ -892,7 +1027,7 @@ Resources:
   KeywordsDetectedLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/KeywordsDetectedFunction
+      LogGroupName: !Sub /aws/lambda/${KeywordsDetectedFunction}
       RetentionInDays: 30
 
 ## GetCustomerData Lambda
@@ -900,7 +1035,7 @@ Resources:
   getCustomerDataFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-get-customer-data
+      FunctionName: !Sub ${Environment}-respond-get-customer-data
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-get-customer-data/
@@ -928,9 +1063,8 @@ Resources:
 
   getCustomerDataLogGroup:
     Type: AWS::Logs::LogGroup
-    DependsOn: getCustomerDataFunction
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/GetCustomerDataLogGroup
+      LogGroupName: !Sub /aws/lambda/${getCustomerDataFunction}
       RetentionInDays: 30
 
 
@@ -938,7 +1072,7 @@ Resources:
   SaveMessageReceivedToDatabaseFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-save-message-received
+      FunctionName: !Sub ${Environment}-respond-save-message-received
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-received/
@@ -963,16 +1097,15 @@ Resources:
 
   SaveMessageReceivedToDatabaseLogGroup:
     Type: AWS::Logs::LogGroup
-    DependsOn: SaveMessageReceivedToDatabaseFunction
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/SaveMessageReceivedToDatabaseLogGroup
+      LogGroupName: !Sub /aws/lambda/${SaveMessageReceivedToDatabaseFunction}
       RetentionInDays: 30
 
 ## SaveMessageSentToDatabase Lambda
   SaveMessageSentToDatabaseFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-save-message-sent
+      FunctionName: !Sub ${Environment}-respond-save-message-sent
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-sent/
@@ -997,9 +1130,8 @@ Resources:
 
   SaveMessageSentToDatabaseLogGroup:
     Type: AWS::Logs::LogGroup
-    DependsOn: SaveMessageSentToDatabaseFunction
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/SaveMessageSentToDatabaseLogGroup
+      LogGroupName: !Sub /aws/lambda/${SaveMessageSentToDatabaseFunction}
       RetentionInDays: 30
 
 
@@ -1007,7 +1139,7 @@ Resources:
   ContactCreatedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-contact-created
+      FunctionName: !Sub ${Environment}-respond-contact-created
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-created/
@@ -1030,18 +1162,19 @@ Resources:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
 
+
+
   ContactCreatedLogGroup:
     Type: AWS::Logs::LogGroup
-    DependsOn: ContactCreatedFunction
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/ContactCreatedLogGroup
+      LogGroupName: !Sub /aws/lambda/${ContactCreatedFunction}
       RetentionInDays: 30
 
 ## ContactCreated Lambda
   ContactUpdatedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: respond-contact-updated
+      FunctionName: !Sub ${Environment}-respond-contact-updated
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-updated/
@@ -1066,9 +1199,75 @@ Resources:
 
   ContactUpdatedLogGroup:
     Type: AWS::Logs::LogGroup
-    DependsOn: ContactUpdatedFunction
     Properties:
-      LogGroupName: !Sub /aws/lambda/${Environment}/ContactUpdatedLogGroup
+      LogGroupName: !Sub /aws/lambda/${ContactUpdatedFunction}
+      RetentionInDays: 30
+
+
+## ConversationOpened Lambda
+  ConversationOpenedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-conversation-opened
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-conversation-opened/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ConversationOpenedSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  ConversationOpenedLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ConversationOpenedFunction}
+      RetentionInDays: 30
+
+## ConversationOpened Lambda
+  ConversationClosedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-conversation-closed
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-conversation-closed/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ConversationClosedSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  ConversationClosedLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ConversationClosedFunction}
       RetentionInDays: 30
 
 

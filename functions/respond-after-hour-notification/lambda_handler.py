@@ -5,26 +5,31 @@ from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
 from respondfunctions.request_contact import request_contact_info
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
-def get_photos_after_time(conn, current_time):
+def get_photos_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # Convertir la hora actual a timestamp
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        ten_minutes_after = current_time_dt + timedelta(minutes=1)
+        current_time_dt = current_time_dt.replace(tzinfo=timezone.utc)
+        ten_minutes_after = current_time_dt - timedelta(minutes=1)
         
         select_query = """
         SELECT url 
         FROM respond_io.messages 
-        WHERE message_classification = 'message.received' 
-        AND message_type = 'image' 
+        WHERE message_type = 'message.received' 
+        AND message_datatype = 'image' 
         AND message_timestamp > %s
+        AND contact_id = %s
         """
         
-        cursor.execute(select_query, (ten_minutes_after,))
+        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
+
+        
+        cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
         photos = [row['url'] for row in rows]
@@ -37,23 +42,27 @@ def get_photos_after_time(conn, current_time):
         print(f"Error: {ex}")
         return ""
 
-def get_messages_after_time(conn, current_time):
+def get_messages_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # Convertir la hora actual a timestamp
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        ten_minutes_after = current_time_dt + timedelta(minutes=1)
+        current_time_dt = current_time_dt.replace(tzinfo=timezone.utc)
+        ten_minutes_after = current_time_dt - timedelta(minutes=1)
         
         select_query = """
         SELECT text_message 
         FROM respond_io.messages 
-        WHERE message_classification = 'message.received' 
-        AND message_type = 'text' 
+        WHERE message_type = 'message.received' 
+        AND message_classification = 'text' 
         AND message_timestamp > %s
+        AND contact_id = %s
         """
         
-        cursor.execute(select_query, (ten_minutes_after,))
+        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
+        
+        cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
         messages = [row['text_message'] for row in rows]
@@ -87,10 +96,10 @@ def lambda_handler(event, context):
                 current_time = data["time"]
                 
                 print("Hora actual:", current_time)
-                messages_array = get_messages_after_time(conn, current_time)
-                photos_array = get_photos_after_time(conn, current_time)
-                print(photos_array)
-                print(messages_array)
+                messages_array = get_messages_after_time(conn, current_time, contact_id)
+                photos_array = get_photos_after_time(conn, current_time, contact_id)
+                # print(photos_array)
+                # print(messages_array)
                 conn.close()
                 
                 store = data["store"]
