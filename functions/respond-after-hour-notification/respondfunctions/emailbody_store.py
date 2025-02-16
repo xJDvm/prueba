@@ -219,7 +219,7 @@ def build_html_store(e):
                                                         <tr>
                                                         <td align="center" class="esd-block-text">
                                                             <p align="left">
-                                                            Estimado equipo de tienda <strong>${store}</strong>,
+                                                            Estimado equipo de tienda <strong>{store}</strong>,
                                                             </p>
                                                             <p align="left">
                                                             Este correo es para para informarles que se ha recibido un mensaje fuera del horario de atención en la oficina central, por el cliente:

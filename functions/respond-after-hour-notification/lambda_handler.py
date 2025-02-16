@@ -4,7 +4,6 @@ from dbconnection.dbconnection import connect
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
-from respondfunctions.request_contact import request_contact_info
 from datetime import datetime, timedelta, timezone
 
 
@@ -12,10 +11,24 @@ def get_photos_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Convertir la hora actual a timestamp
+        print(f"Current Time: ", current_time)
+        
+        # Convertir la hora actual a timestamp y ajustarla a UTC (hora de Costa Rica a UTC)
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        current_time_dt = current_time_dt.replace(tzinfo=timezone.utc)
-        ten_minutes_after = current_time_dt - timedelta(minutes=1)
+        costa_rica_tz = timezone(timedelta(hours=-6))  # Costa Rica está en UTC-6
+        current_time_dt = current_time_dt.replace(tzinfo=costa_rica_tz)
+        current_time_utc = current_time_dt.astimezone(timezone.utc)
+        ten_minutes_after = current_time_utc - timedelta(minutes=1)
+
+        print(f"Converted time costa rica: ", costa_rica_tz )
+
+        print(f"Converted time DTC: ", current_time_dt )
+
+
+        print(f"Converted time UTC: ", current_time_utc )
+
+
+        print(f"Converted time -1: ", ten_minutes_after )
         
         select_query = """
         SELECT url 
@@ -45,11 +58,25 @@ def get_photos_after_time(conn, current_time, contact_id):
 def get_messages_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        print(f"Current Time: ", current_time)
         
-        # Convertir la hora actual a timestamp
+        # Convertir la hora actual a timestamp y ajustarla a UTC (hora de Costa Rica a UTC)
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        current_time_dt = current_time_dt.replace(tzinfo=timezone.utc)
-        ten_minutes_after = current_time_dt - timedelta(minutes=1)
+        costa_rica_tz = timezone(timedelta(hours=-6))  # Costa Rica está en UTC-6
+        current_time_dt = current_time_dt.replace(tzinfo=costa_rica_tz)
+        current_time_utc = current_time_dt.astimezone(timezone.utc)
+        ten_minutes_after = current_time_utc - timedelta(minutes=1)
+
+        print(f"Converted time costa rica: ", costa_rica_tz )
+
+        print(f"Converted time DTC: ", current_time_dt )
+
+
+        print(f"Converted time UTC: ", current_time_utc )
+
+
+        print(f"Converted time -1: ", ten_minutes_after )
         
         select_query = """
         SELECT text_message 
@@ -111,6 +138,8 @@ def lambda_handler(event, context):
                 incoming_messages = messages_array
                 incoming_photos = photos_array
                 
+                agent_email = data["agent_email"]
+                
                 e = {
                     'store': store,
                     'clientName': client_name,
@@ -127,7 +156,7 @@ def lambda_handler(event, context):
                 # print(body)
                 
                 sender = 'respond@arqintelix.biz'
-                recipient = 'jvaldes@intelix.biz'
+                recipient = agent_email
                 subject = "Respond.io | Notificación de mensaje pendiente"
                 body_text = "Respond.io | Notificación de mensaje pendiente"
                 body_html = body
@@ -140,6 +169,9 @@ def lambda_handler(event, context):
             else:
                 agent_value = data["agent"]
                 document_value = data["client_identification"]
+                
+                store_email = data["store_email"]
+                
 
                 print("Agente:", agent_value)
                 print("Cedula:", document_value)
@@ -149,7 +181,8 @@ def lambda_handler(event, context):
                 print(body)
                                 
                 sender = 'respond@arqintelix.biz'
-                recipient = 'jvaldes@intelix.biz'
+                recipient = store_email
+                cc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
                 subject = "Respond.io | Notificación de mensaje pendiente"
                 body_text = "Respond.io | Notificación de mensaje pendiente"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)
@@ -157,7 +190,7 @@ def lambda_handler(event, context):
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html)
+                send_email(sender, recipient, subject, body_text, body_html, cc_addresses=cc)
                 
 
         except Exception as e:
