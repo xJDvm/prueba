@@ -33,7 +33,7 @@ def keyword_checker(message, contact):
             found_keywords.append(word)
 
     if found_keywords:
-        comment = f'Se detectaron las siguientes palabras clave: "{", ".join(found_keywords)}" en el message.'
+        comment = f'Se detectaron las siguientes palabras clave: "{", ".join(found_keywords)}" en el mensaje.'
 
         url_contact = f"https://api.respond.io/v2/contact/id:{contact}"
 

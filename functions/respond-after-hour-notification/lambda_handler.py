@@ -4,6 +4,7 @@ from dbconnection.dbconnection import connect
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
+from respondfunctions.assign_conversation import assign_conversation
 from datetime import datetime, timedelta, timezone
 
 
@@ -140,6 +141,18 @@ def lambda_handler(event, context):
                 
                 agent_email = data["agent_email"]
                 
+                store_assignee_map = {
+                    "Curridabat": 273980,
+                    "Escazú": 273980,
+                    "Belén": 273980,
+                    "Tibás": 475025,
+                    "Desamparados": 475025
+                }
+                
+                
+                
+                assignee = store_assignee_map.get(store, None)
+                
                 e = {
                     'store': store,
                     'clientName': client_name,
@@ -164,7 +177,9 @@ def lambda_handler(event, context):
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html)            
+                send_email(sender, recipient, subject, body_text, body_html)  
+                
+                assign_conversation(contact_id, assignee)          
             
             else:
                 agent_value = data["agent"]

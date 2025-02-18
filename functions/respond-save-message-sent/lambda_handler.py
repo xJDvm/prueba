@@ -194,9 +194,6 @@ def handle_template_message(data):
     conn.close()
     print("Datos insertados correctamente en la tabla respond_io.messages")
     
-    
-    
-    pass
 
 def handle_quick_reply_message(data):
     contact_id = data["contact"]["id"]
@@ -239,7 +236,30 @@ def handle_quick_reply_message(data):
     conn.close()
     print("Datos insertados correctamente en la tabla respond_io.messages")
     
-    pass
+
+# def handle_update_conversation(data):
+#     timestamp = data["message"]["timestamp"]
+#     contact_id = str(data["contact"]["id"])
+    
+#     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    
+#     dl_modified_at = datetime.now().isoformat()
+    
+#     conn = connect()
+#     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#     update_query = """
+#         UPDATE respond_io.conversation
+#         SET dl_modified_at = %s,
+#             time_last_mess_out = %s
+#         WHERE contact_id = %s
+#         AND conversation_status = 'open'
+#     """
+#     cursor.execute(update_query, (dl_modified_at, message_timestamp, contact_id))
+#     conn.commit()
+#     cursor.close()
+#     conn.close()
+#     print("Datos actualizados correctamente en la tabla respond_io.conversation")
+
 
 def lambda_handler(event, context):
     batch_item_failures = []
@@ -268,6 +288,7 @@ def lambda_handler(event, context):
             handler = message_handlers.get(message_type)
             if handler:
                 handler(data)
+                # handle_update_conversation(data)
             else:
                 print(f"Tipo de mensaje no soportado: {message_type}")
                 return lambda_response(HttpStatus.BAD_REQUEST, {"error": "Unsupported message type"})

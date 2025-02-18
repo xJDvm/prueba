@@ -208,7 +208,6 @@ Resources:
         - RestApiId: !Ref respondApiGateway
           StageName: api
     DependsOn:
-      - respondApiGateway
       - ApiDeployment
 
   ApiUsagePlan:
@@ -229,7 +228,6 @@ Resources:
       KeyType: API_KEY
       UsagePlanId: !Ref ApiUsagePlan
     DependsOn:
-      - ApiUsagePlan
       - ApiDeployment
 
 
@@ -260,6 +258,12 @@ Resources:
     Type: AWS::Events::EventBus
     Properties:
       Name: RespondWorkflowEventBus
+
+  RespondUserEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: RespondUserEventBus
+
 
 
   ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
@@ -309,6 +313,33 @@ Resources:
                   - events:PutEvents
                   - events:PutEvent
                 Resource: !GetAtt RespondWorkflowEventBus.Arn
+
+
+ ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
+  ApiGatewayRoleUser:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowPutEvents
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                  - events:PutEvent
+                Resource: !GetAtt RespondUserEventBus.Arn
+
+
 
 
 ### Se crea un resource para el apigateway (/test)
@@ -423,8 +454,7 @@ Resources:
                           "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
                           "DetailType": "EventBridge from APIGW",
                           "EventBusName": "${EventBusName}",
-                          "Source": "respondio.webhook",
-                          "IsWorkflow": true
+                          "Source": "respondio.webhook"
                       }
                   ]
               }
@@ -441,6 +471,83 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
               method.response.header.Access-Control-Allow-Methods: '''POST'''
               method.response.header.Access-Control-Allow-Origin: '''*'''
+
+
+
+
+
+  RespondUserAPIResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: user
+      RestApiId: !Ref respondApiGateway
+
+
+### Se crea el método post donde ocurre la "magia" de publicar al eventbridge. 
+  RespondUserApiPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ResourceId: !Ref RespondUserAPIResource
+      RestApiId: !Ref respondApiGateway
+      AuthorizationType: NONE
+      # ApiKeyRequired: true
+      HttpMethod: POST
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+      RequestParameters:
+        method.request.header.X-Amz-Target: false
+        method.request.header.Content-Type: false
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt ApiGatewayRoleUser.Arn
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: !Sub
+            - |
+              #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
+              #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
+              #set($inputRoot = $input.json('$'))
+              {
+                  "Entries": [
+                      {
+                          "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
+                          "DetailType": "EventBridge from APIGW",
+                          "EventBusName": "${EventBusName}",
+                          "Source": "respondio.webhook"
+                      }
+                  ]
+              }
+            - EventBusName: !Ref RespondUserEventBus
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              application/json: |-
+                #set($val = $input.path('$.Entries[0].EventId'))
+                {
+                  "response": "$val"
+                }
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
+              method.response.header.Access-Control-Allow-Methods: '''POST'''
+              method.response.header.Access-Control-Allow-Origin: '''*'''
+
+
+
+
+
+
+
+
+
 
 
 ### Recursos SNS
@@ -709,6 +816,43 @@ Resources:
       Topics:
         - !Ref AfterHourMessageSNS
 
+  ## AfterHourAsignSNS
+  AfterHourAssignSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: AfterHourAssignSNS
+
+  AfterHourAssignSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - send.after_hour_assign
+      Targets:
+        - Arn: !Ref AfterHourAssignSNS
+          Id: AfterHourAssignSNSRule
+
+  AfterHourAssignSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref AfterHourAssignSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt AfterHourAssignSNSRule.Arn
+      Topics:
+        - !Ref AfterHourAssignSNS
+
+
 
 ## RespondRequestSNS
   RespondRequestSNS:
@@ -748,6 +892,49 @@ Resources:
 
 
 
+## SNS DE API USER
+## SaveOutgoingMessageTimeFromUserSNS
+  SaveOutgoingMessageTimeFromUserSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SaveOutgoingMessageTimeFromUserSNS
+
+  SaveOutgoingMessageTimeFromUserSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondUserEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - message.sent
+      Targets:
+        - Arn: !Ref SaveOutgoingMessageTimeFromUserSNS
+          Id: SaveOutgoingMessageTimeFromUserSNSRule
+
+  SaveOutgoingMessageTimeFromUserSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref SaveOutgoingMessageTimeFromUserSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt SaveOutgoingMessageTimeFromUserSNSRule.Arn
+      Topics:
+        - !Ref SaveOutgoingMessageTimeFromUserSNS
+
+
+
+
+
+
+## SNS DE API WORKFLOW
 ## SaveOutgoingMessagesFromWorkflowSNS
   SaveOutgoingMessagesFromWorkflowSNS:
     Type: AWS::SNS::Topic
@@ -762,8 +949,6 @@ Resources:
         source:
           - respondio.webhook
         detail:
-          IsWorkflow:
-            - true
           event_type:
             - message.sent
       Targets:
@@ -791,6 +976,39 @@ Resources:
 
 
 ### Recursos SQS
+## SaveOutgoingMessageTimeFromUserSQS
+  SaveOutgoingMessageTimeFromUserSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SaveOutgoingMessageTimeFromUserSNSSQS
+      VisibilityTimeout: 60
+
+  SaveOutgoingMessageTimeFromUserSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SaveOutgoingMessageTimeFromUserSNS
+      Protocol: sqs
+      Endpoint: !GetAtt SaveOutgoingMessageTimeFromUserSNSSQS.Arn
+
+  SaveOutgoingMessageTimeFromUserSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt SaveOutgoingMessageTimeFromUserSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref SaveOutgoingMessageTimeFromUserSNS
+      Queues:
+        - !Ref SaveOutgoingMessageTimeFromUserSNSSQS 
+
+
+
 ## SaveOutgoingMessagesFromWorkflow SQS
   SaveOutgoingMessagesFromWorkflowSNSSQS:
     Type: AWS::SQS::Queue
@@ -853,6 +1071,7 @@ Resources:
               aws:SourceArn: !Ref RespondRequestSNS
       Queues:
         - !Ref RespondRequestSNSSQS 
+    
 
 
 ## RespondContactSQS
@@ -1114,6 +1333,37 @@ Resources:
         - !Ref AfterHourMessageSNSSQS    
 
 
+## AfterHourAssignSQS
+  AfterHourAssignSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: AfterHourAssignSNSSQS
+      VisibilityTimeout: 60
+
+  AfterHourAssignSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AfterHourAssignSNS
+      Protocol: sqs
+      Endpoint: !GetAtt AfterHourAssignSNSSQS.Arn
+
+  AfterHourAssignSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt AfterHourAssignSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref AfterHourAssignSNS
+      Queues:
+        - !Ref AfterHourAssignSNSSQS    
+
 
 
 
@@ -1147,6 +1397,10 @@ Resources:
           - Effect: Allow
             Action: secretsmanager:GetSecretValue
             Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+      
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1157,6 +1411,47 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC  
+          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+
+
+##AfterHourAssign Lambda
+  AfterHourAssignLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AfterHourAssignFunction}
+      RetentionInDays: 30
+
+  AfterHourAssignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-after-hour-assign
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-after-hour-assign/
+      Timeout: 10
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AfterHourAssignSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC  
+          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
 
 
 ## KeywordsDetected Lambda
@@ -1473,6 +1768,40 @@ Resources:
       RetentionInDays: 30
 
 
+## SaveOutgoingMessageTimeFromUser Lambda
+  SaveOutgoingMessageTimeFromUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-save-message-time-user
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-save-message-time-user/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SaveOutgoingMessageTimeFromUserSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  SaveOutgoingMessageTimeFromUserLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SaveOutgoingMessageTimeFromUserFunction}
+      RetentionInDays: 30
+
+
 
 
 
@@ -1488,6 +1817,44 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
+
+
+
+## PendingMessage Lambda
+  PendingMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-pending-message
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-pending-message/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events: ## Evento programado para ejecutar cada minuto
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub ${AWS::StackName}-respond-pending-message
+            Schedule: rate(1 minute)
+            Description: "Schedule to check pending messages on respond.io"
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  PendingMessageLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PendingMessageFunction}
+      RetentionInDays: 30
 
 ## Outputs
 Outputs:

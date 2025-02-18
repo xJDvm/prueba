@@ -18,7 +18,7 @@ def handle_update_conversation(data):
     update_query = """
         UPDATE respond_io.conversation
         SET dl_modified_at = %s,
-            time_last_mess_out_wf = %s
+            time_last_mess_out = %s
         WHERE contact_id = %s
         AND conversation_status = 'open'
     """
