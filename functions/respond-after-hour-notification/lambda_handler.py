@@ -7,11 +7,23 @@ from respondfunctions.emailbody_store import build_html_store
 from datetime import datetime, timedelta, timezone
 
 
+def get_contact_info(contact_id, conn):
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute("SELECT lider_email FROM respond_io.contacts WHERE contact_id = %s", (str(contact_id),))
+        contact = cursor.fetchone()
+        lider_email = contact['lider_email'] if contact else None
+        cursor.close()
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+        lider_email = None
+    
+    return json.dumps({"lider_email": lider_email})
+
 def get_photos_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        print(f"Current Time: ", current_time)
         
         # Convertir la hora actual a timestamp y ajustarla a UTC (hora de Costa Rica a UTC)
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
@@ -19,16 +31,6 @@ def get_photos_after_time(conn, current_time, contact_id):
         current_time_dt = current_time_dt.replace(tzinfo=costa_rica_tz)
         current_time_utc = current_time_dt.astimezone(timezone.utc)
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
-
-        # print(f"Converted time costa rica: ", costa_rica_tz )
-
-        # print(f"Converted time DTC: ", current_time_dt )
-
-
-        # print(f"Converted time UTC: ", current_time_utc )
-
-
-        # print(f"Converted time -1: ", ten_minutes_after )
         
         select_query = """
         SELECT url 
@@ -38,9 +40,6 @@ def get_photos_after_time(conn, current_time, contact_id):
         AND message_timestamp > %s
         AND contact_id = %s
         """
-        
-        # print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
-
         
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
@@ -74,9 +73,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         AND message_timestamp > %s
         AND contact_id = %s
         """
-        
-        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
-        
+                
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
@@ -110,11 +107,8 @@ def lambda_handler(event, context):
                 conn = connect()
                 current_time = data["time"]
                 
-                print("Hora actual:", current_time)
                 messages_array = get_messages_after_time(conn, current_time, contact_id)
                 photos_array = get_photos_after_time(conn, current_time, contact_id)
-                # print(photos_array)
-                print(messages_array)
                 conn.close()
                 
                 store = data["store"]
@@ -126,23 +120,22 @@ def lambda_handler(event, context):
                 incoming_messages = messages_array
                 incoming_photos = photos_array
                 
-                agent_email = data["agent_email"]
+                lider_email = data["lider_email"]
                 
-                print(f"Incoming messages: {incoming_messages}")
-                
-                print(f"Store: {store}")
-                
-                # store_assignee_map = {
-                #     "Curridabat": 273980,
-                #     "Escazú": 273980,
-                #     "Belén": 273980,
-                #     "Tibás": 475025,
-                #     "Desamparados": 475025
-                # }
+                print(data)
                 
                 
+                store_assignee_map = {
+                    "Curridabat": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
+                    "Escazú": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
+                    "Belén": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
+                    "Tibás": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
+                    "Desamparados": ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                }
                 
-                # assignee = store_assignee_map.get(store, None)
+                
+                
+                store_assignee = store_assignee_map.get(store, None)
                 
                 
                 e = {
@@ -158,39 +151,36 @@ def lambda_handler(event, context):
                 }
                 
                 body = build_html_store(e)
-                # print(body)
                 
                 sender = 'respond@arqintelix.biz'
-                recipient = agent_email
+                recipient = store_assignee
+                cc=[lider_email]
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body
                 
-                cc=['projas@intelix.biz', 'jvaldes@intelix.biz']
+                bcc=['projas@intelix.biz', 'jvaldes@intelix.biz']
 
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc_addresses=cc)  
+                send_email(sender, recipient, subject, body_text, body_html, cc, bcc)  
                 
             
             else:
                 agent_value = data["agent"]
                 document_value = data["client_identification"]
                 
-                store_email = data["store_email"]
+                asesor_email = data["asesor_email"]
                 
 
-                print("Agente:", agent_value)
-                print("Cedula:", document_value)
                 
                 body = build_html_asesor(contact_name, contact_id, agent_value, document_value)
             
-                print(body)
                                 
                 sender = 'respond@arqintelix.biz'
-                recipient = store_email
-                cc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                recipient = [asesor_email]
+                bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)
@@ -198,7 +188,7 @@ def lambda_handler(event, context):
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc_addresses=cc)
+                send_email(sender, recipient, subject, body_text, body_html, cc)
                 
 
         except Exception as e:

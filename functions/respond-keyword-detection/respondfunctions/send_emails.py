@@ -1,7 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
-def send_email(sender, recipients, subject, body_text, body_html, cc_addresses, bcc_addresses):
+def send_email(sender, recipients, subject, body_text, body_html, cc_addresses=None, bcc_addresses=None):
 
     ses_client = boto3.client('ses')
 
@@ -9,8 +9,8 @@ def send_email(sender, recipients, subject, body_text, body_html, cc_addresses, 
         'Source': sender,
         'Destination': {
             'ToAddresses': recipients,
-            'CcAddresses': cc_addresses,
-            'BccAddresses': bcc_addresses
+            'CcAddresses': cc_addresses if cc_addresses else [],
+            'BccAddresses': bcc_addresses if bcc_addresses else []
         },
         'Message': {
             'Subject': {

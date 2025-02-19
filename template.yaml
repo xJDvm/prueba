@@ -629,6 +629,42 @@ Resources:
       Topics:
         - !Ref ContactUpdatedSNS
 
+## ContactUpdatedAssigneeSNS
+  ContactUpdatedAssigneeSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ContactUpdatedAssigneeSNS
+
+  ContactUpdatedAssigneeSNSRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RespondEventBus
+      EventPattern:
+        source:
+          - respondio.webhook
+        detail:
+          event_type:
+            - contact.assignee.updated
+      Targets:
+        - Arn: !Ref ContactUpdatedAssigneeSNS
+          Id: ContactUpdatedAssigneeSNSRule
+
+  ContactUpdatedAssigneeSNSPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref ContactUpdatedAssigneeSNS
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !GetAtt ContactUpdatedAssigneeSNSRule.Arn
+      Topics:
+        - !Ref ContactUpdatedAssigneeSNS
+
 
 ## ConversationOpenedSNS
   ConversationOpenedSNS:
@@ -1137,6 +1173,37 @@ Resources:
       Queues:
         - !Ref ContactUpdatedSNSSQS   
 
+## ContactUpdatedAssigneeSQS
+  ContactUpdatedAssigneeSNSSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ContactUpdatedAssigneeNSSQS
+      VisibilityTimeout: 60
+
+  ContactUpdatedAssigneeSNSSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref ContactUpdatedAssigneeSNS
+      Protocol: sqs
+      Endpoint: !GetAtt ContactUpdatedAssigneeSNSSQS.Arn
+
+  ContactUpdatedAssigneeSNSSQSSubscriptionPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: sns.amazonaws.com
+          Action: sqs:SendMessage
+          Resource: !GetAtt ContactUpdatedAssigneeSNSSQS.Arn
+          Condition:
+            ArnEquals:
+              aws:SourceArn: !Ref ContactUpdatedAssigneeSNS
+      Queues:
+        - !Ref ContactUpdatedAssigneeSNSSQS   
+
 
 ## ConversationOpenedSQS
   ConversationOpenedSNSSQS:
@@ -1636,7 +1703,7 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${ContactCreatedFunction}
       RetentionInDays: 30
 
-## ContactCreated Lambda
+## ContactUpdated Lambda
   ContactUpdatedFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1667,6 +1734,40 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ContactUpdatedFunction}
+      RetentionInDays: 30
+
+
+## ContactUpdatedAssignee Lambda
+  ContactUpdatedAssigneeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-contact-updated-assignee
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-contact-updated-assignee/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ContactUpdatedAssigneeSNSSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  ContactUpdatedAssigneeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ContactUpdatedAssigneeFunction}
       RetentionInDays: 30
 
 
