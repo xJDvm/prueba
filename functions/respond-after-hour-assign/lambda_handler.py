@@ -34,6 +34,8 @@ def lambda_handler(event, context):
 
             conn = connect()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            
+            
 
             conversation_query = """
                 SELECT time_last_mess_in, time_last_mess_out, time_last_mess_out_wf

@@ -1,17 +1,16 @@
 import boto3
-import json
-import os
 from botocore.exceptions import ClientError
 
-def send_email(sender, recipient, subject, body_text, body_html, cc_addresses=[]):
+def send_email(sender, recipients, subject, body_text, body_html, cc_addresses, bcc_addresses):
 
     ses_client = boto3.client('ses')
 
     email_message = {
         'Source': sender,
         'Destination': {
-            'ToAddresses': [recipient],
-            'CcAddresses': cc_addresses
+            'ToAddresses': recipients,
+            'CcAddresses': cc_addresses,
+            'BccAddresses': bcc_addresses
         },
         'Message': {
             'Subject': {

@@ -227,7 +227,7 @@ def handle_quick_reply_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, replies,  channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))

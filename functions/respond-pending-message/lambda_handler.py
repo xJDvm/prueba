@@ -7,6 +7,15 @@ from lambda_response import lambda_response
 from status_http import HttpStatus
 from datetime import datetime, timedelta
 
+def get_contact_info(contact_id, conn):
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("SELECT lider_email FROM respond_io.contacts WHERE contact_id = %s", (contact_id,))
+    contact = cursor.fetchone()
+    cursor.close()
+    
+    return contact
+
+
 def lambda_handler(event, context):
     print('Iniciando proceso de notificación de mensaje pendiente')
 
@@ -24,9 +33,13 @@ def lambda_handler(event, context):
             WHERE c.conversation_status = 'open'
         """
         cursor.execute(conversation_query)
+        print(cursor.mogrify(conversation_query).decode('utf-8'))
+        print("Conversaciones encontradas: ", cursor.rowcount)
         conversations = cursor.fetchall()
 
         for conversation in conversations:
+            print(f"Procesando conversación: {conversation['contact_id']}")
+            
             time_last_mess_in = conversation['time_last_mess_in']
             time_last_mess_out = conversation['time_last_mess_out'] if conversation['time_last_mess_out'] else None
             mark_30min = conversation['mark_30min']
@@ -37,9 +50,15 @@ def lambda_handler(event, context):
             full_name = conversation['full_name']
 
             time_since_last_in = (message_time - time_last_mess_in).total_seconds() / 60
+            print("Tiempo desde el ultimo mensaje entrante: ", time_since_last_in)
+            
             responded_after_client = time_last_mess_out and time_last_mess_out > time_last_mess_in
+            
+            print("Respondió después del cliente: ", responded_after_client)
 
             if time_since_last_in >= 3 and not responded_after_client and not mark_30min:
+                print("Enviando correo de 30 min")
+                
                 subject = "Respond.io | Notificación de mensaje pendiente (30 min)"
                 body_html = build_html(asesor_name, conversation['contact_id'], full_name, client_identification, time_last_mess_out)
                 send_email('respond@arqintelix.biz', 'jvaldes@intelix.biz', subject, subject, body_html)
@@ -48,6 +67,8 @@ def lambda_handler(event, context):
                 print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
 
             elif time_since_last_in >= 6 and not responded_after_client and not mark_60min:
+                print("Enviando correo de 60 min")
+                
                 subject = "Respond.io | Notificación de mensaje pendiente (60 min)"
                 body_html = build_html(asesor_name, conversation['contact_id'], full_name, client_identification, time_last_mess_out)
                 send_email('respond@arqintelix.biz', 'jvaldes@intelix.biz', subject, subject, body_html)

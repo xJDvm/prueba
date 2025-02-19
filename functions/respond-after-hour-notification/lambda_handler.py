@@ -4,7 +4,6 @@ from dbconnection.dbconnection import connect
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
-from respondfunctions.assign_conversation import assign_conversation
 from datetime import datetime, timedelta, timezone
 
 
@@ -21,15 +20,15 @@ def get_photos_after_time(conn, current_time, contact_id):
         current_time_utc = current_time_dt.astimezone(timezone.utc)
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
 
-        print(f"Converted time costa rica: ", costa_rica_tz )
+        # print(f"Converted time costa rica: ", costa_rica_tz )
 
-        print(f"Converted time DTC: ", current_time_dt )
-
-
-        print(f"Converted time UTC: ", current_time_utc )
+        # print(f"Converted time DTC: ", current_time_dt )
 
 
-        print(f"Converted time -1: ", ten_minutes_after )
+        # print(f"Converted time UTC: ", current_time_utc )
+
+
+        # print(f"Converted time -1: ", ten_minutes_after )
         
         select_query = """
         SELECT url 
@@ -40,7 +39,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         AND contact_id = %s
         """
         
-        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
+        # print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
 
         
         cursor.execute(select_query, (ten_minutes_after, contact_id))
@@ -60,8 +59,6 @@ def get_messages_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        print(f"Current Time: ", current_time)
-        
         # Convertir la hora actual a timestamp y ajustarla a UTC (hora de Costa Rica a UTC)
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
         costa_rica_tz = timezone(timedelta(hours=-6))  # Costa Rica está en UTC-6
@@ -69,16 +66,6 @@ def get_messages_after_time(conn, current_time, contact_id):
         current_time_utc = current_time_dt.astimezone(timezone.utc)
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
 
-        print(f"Converted time costa rica: ", costa_rica_tz )
-
-        print(f"Converted time DTC: ", current_time_dt )
-
-
-        print(f"Converted time UTC: ", current_time_utc )
-
-
-        print(f"Converted time -1: ", ten_minutes_after )
-        
         select_query = """
         SELECT text_message 
         FROM respond_io.messages 
@@ -127,7 +114,7 @@ def lambda_handler(event, context):
                 messages_array = get_messages_after_time(conn, current_time, contact_id)
                 photos_array = get_photos_after_time(conn, current_time, contact_id)
                 # print(photos_array)
-                # print(messages_array)
+                print(messages_array)
                 conn.close()
                 
                 store = data["store"]
@@ -141,17 +128,22 @@ def lambda_handler(event, context):
                 
                 agent_email = data["agent_email"]
                 
-                store_assignee_map = {
-                    "Curridabat": 273980,
-                    "Escazú": 273980,
-                    "Belén": 273980,
-                    "Tibás": 475025,
-                    "Desamparados": 475025
-                }
+                print(f"Incoming messages: {incoming_messages}")
+                
+                print(f"Store: {store}")
+                
+                # store_assignee_map = {
+                #     "Curridabat": 273980,
+                #     "Escazú": 273980,
+                #     "Belén": 273980,
+                #     "Tibás": 475025,
+                #     "Desamparados": 475025
+                # }
                 
                 
                 
-                assignee = store_assignee_map.get(store, None)
+                # assignee = store_assignee_map.get(store, None)
+                
                 
                 e = {
                     'store': store,
@@ -170,16 +162,17 @@ def lambda_handler(event, context):
                 
                 sender = 'respond@arqintelix.biz'
                 recipient = agent_email
-                subject = "Respond.io | Notificación de mensaje pendiente"
-                body_text = "Respond.io | Notificación de mensaje pendiente"
+                subject = "Respond.io | Notificación de mensaje fuera de horario"
+                body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body
+                
+                cc=['projas@intelix.biz', 'jvaldes@intelix.biz']
 
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html)  
+                send_email(sender, recipient, subject, body_text, body_html, cc_addresses=cc)  
                 
-                assign_conversation(contact_id, assignee)          
             
             else:
                 agent_value = data["agent"]
@@ -198,8 +191,8 @@ def lambda_handler(event, context):
                 sender = 'respond@arqintelix.biz'
                 recipient = store_email
                 cc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
-                subject = "Respond.io | Notificación de mensaje pendiente"
-                body_text = "Respond.io | Notificación de mensaje pendiente"
+                subject = "Respond.io | Notificación de mensaje fuera de horario"
+                body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)
 
                 if not all([sender, recipient, subject, body_text, body_html]):

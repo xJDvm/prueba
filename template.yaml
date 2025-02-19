@@ -1473,6 +1473,9 @@ Resources:
             Action: ses:SendEmail
             Resource: '*'
           - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+          - Effect: Allow
             Action: ssm:GetParameter
             Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
       Events:
@@ -1485,6 +1488,7 @@ Resources:
       Environment:
         Variables:
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
 
   KeywordsDetectedLogGroup:
     Type: AWS::Logs::LogGroup
