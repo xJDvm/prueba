@@ -4,6 +4,7 @@ from dbconnection.dbconnection import connect
 from respondfunctions.keyword_check import keyword_checker
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody import build_html
+from botocore.exceptions import ClientError
 
 
 def get_contact_info(contact_id, conn):
@@ -35,35 +36,38 @@ def lambda_handler(event, context):
             message_text = data["message"]["message"]["text"]
             assignee_email = data["contact"]["assignee"]["email"]
             
-            result = keyword_checker(message_text, contact_id)
-            
-            if result["success"]:
+            try:
+                result = keyword_checker(message_text, contact_id)
                 
-                keywords = ", ".join(result['keywords'])
-                
-                body_html = build_html(contact_name, contact_id, keywords)
-                
-                print(f"Palabra clave encontrada: '{keywords}' en el contacto con ID: {contact_id}")
-                
+                if result["success"]:
+                    
+                    keywords = ", ".join(result['keywords'])
+                    
+                    body_html = build_html(contact_name, contact_id, keywords)
+                    
+                    print(f"Palabra clave encontrada: '{keywords}' en el contacto con ID: {contact_id}")
+                    
 
-                conn = connect()
-                contact_info_json = get_contact_info(contact_id, conn)
-                contact_info = json.loads(contact_info_json)
-                conn.close()
-                
-                lider_email = contact_info['lider_email'] if contact_info else []
-                
-                sender = 'respond@arqintelix.biz'
-                recipient = [assignee_email]
-                cc = [lider_email]
-                bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
-                subject = "Respond.io | Notificación palabra clave detectada"
-                body_text = "Respond.io | Notificación palabra clave detectada"
+                    conn = connect()
+                    contact_info_json = get_contact_info(contact_id, conn)
+                    contact_info = json.loads(contact_info_json)
+                    conn.close()
+                    
+                    lider_email = contact_info['lider_email'] if contact_info else []
+                    
+                    sender = 'respond@arqintelix.biz'
+                    recipient = [assignee_email]
+                    cc = [lider_email] if lider_email else []
+                    bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                    subject = "Respond.io | Notificación palabra clave detectada"
+                    body_text = "Respond.io | Notificación palabra clave detectada"
 
-                if not all([sender, recipient, subject, body_text, body_html]):
-                    raise ValueError("Missing email parameters")
+                    if not all([sender, recipient, subject, body_text, body_html]):
+                        raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc, bcc)
+                    send_email(sender, recipient, subject, body_text, body_html, cc, bcc)
+            except ClientError as e:
+                print("Error sending email: ", e.response['Error']['Message'])
 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
