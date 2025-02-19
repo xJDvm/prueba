@@ -53,7 +53,8 @@ def handle_text_message(data):
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
+
     
     mark_after_hours = False
     within_business_hours = is_within_business_hours(timestamp)
@@ -125,7 +126,8 @@ def handle_attachment_message(data):
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
+
     
     mark_after_hours = False
     
@@ -169,7 +171,8 @@ def handle_template_message(data):
     
     message_datatype = data["message"]["message"]["type"]
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
+
     
     mark_after_hours = False
     
@@ -203,14 +206,14 @@ def handle_quick_reply_message(data):
     timestamp = data["message"]["timestamp"]
     message_type = data["event_type"]
     title = data["message"]["message"]["title"]
-    replies = json.dumps(data["message"]["message"]["replies"])
+    replies = json.dumps(data["message"]["message"]["replies"], ensure_ascii=False)
     channel_id = data["channel"]["id"]
     message_datatype = data["message"]["message"]["type"]
     
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
     
     mark_after_hours = False
     

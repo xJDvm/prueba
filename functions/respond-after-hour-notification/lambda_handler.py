@@ -135,7 +135,7 @@ def lambda_handler(event, context):
                 
                 
                 
-                store_assignee = store_assignee_map.get(store, None)
+                store_assignee = store_assignee_map.get(store, [])
                 
                 
                 e = {

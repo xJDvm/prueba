@@ -1820,6 +1820,9 @@ Resources:
             - Effect: Allow
               Action: secretsmanager:GetSecretValue
               Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt AnalyzeConversationFunction.Arn
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1830,12 +1833,49 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
+          ANALYZE_CONVERSATION_FUNCTION_NAME: !Ref AnalyzeConversationFunction
 
   ConversationClosedLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ConversationClosedFunction}
       RetentionInDays: 30
+
+
+## AnalyzeConversation Lambda
+  AnalyzeConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-respond-analyze-conversation
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-analyze-conversation/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+            - Sid: AllowBedrockInvocation
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  AnalyzeConversationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AnalyzeConversationFunction}
+      RetentionInDays: 30
+
 
 
 

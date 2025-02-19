@@ -53,7 +53,7 @@ def handle_text_message(data):
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
     
     mark_after_hours = False
     
@@ -96,7 +96,7 @@ def handle_attachment_message(data):
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
     
     
     mark_after_hours = False
@@ -139,7 +139,7 @@ def handle_location_message(data):
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
-    data_json = json.dumps(data)
+    data_json = json.dumps(data, ensure_ascii=False)
     
     mark_after_hours = False
     within_business_hours = is_within_business_hours(timestamp)

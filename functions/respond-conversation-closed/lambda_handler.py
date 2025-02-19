@@ -1,7 +1,24 @@
 import json
 import psycopg2.extras
+import boto3
 import datetime
+import os
 from dbconnection.dbconnection import connect
+
+def invoke_analyze_conversation(conversation_cod):
+    analyze_conversation_function_name = os.environ['ANALYZE_CONVERSATION_FUNCTION_NAME']
+    lambda_client = boto3.client('lambda')
+    
+    payload = {
+        "conversation_cod": conversation_cod
+    }
+    
+    lambda_client.invoke(
+        FunctionName=analyze_conversation_function_name,
+        InvocationType='RequestResponse',
+        Payload=json.dumps(payload)
+    )
+    
 
 
 def handle_close_conversation(data):
@@ -42,6 +59,9 @@ def handle_close_conversation(data):
     cursor.close()
     conn.close()
     print("Datos actualizados correctamente en la tabla respond_io.conversation")
+    
+    # Invocar la función de análisis de conversación
+    invoke_analyze_conversation(conversation_cod)
 
 
 def lambda_handler(event, context):
