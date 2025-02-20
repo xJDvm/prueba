@@ -14,9 +14,6 @@ logger.setLevel(logging.INFO)
 bedrock_client = boto3.client('bedrock-runtime')
 
 def get_conversation_messages(conversation_cod):
-    """
-    Obtiene los mensajes de una conversación desde la base de datos.
-    """
     try:
         # Conectar a la base de datos
         conn = connect()
@@ -37,6 +34,7 @@ def get_conversation_messages(conversation_cod):
             ORDER BY message_timestamp ASC
         """
         cursor.execute(query, (conversation_cod,))
+        print(cursor.mogrify(query, (conversation_cod,)).decode('utf-8'))
         messages = cursor.fetchall()
     except Exception as e:
         logger.error(f"Error al ejecutar la consulta: {str(e)}")
@@ -100,6 +98,8 @@ def get_conversation_messages(conversation_cod):
         
         # Agregar el mensaje formateado a la lista de mensajes
         response['messages'].append(formatted_message)
+        
+        logger.info(f"Total messages retrieved: {len(response['messages'])}")
     
     return response
 
@@ -220,12 +220,71 @@ def lambda_handler(event, context):
         # Combinar la respuesta original con el análisis de Bedrock
         response['analysis'] = analysis_result
         
+        
+        print(response)
+        # Convertir el análisis a un diccionario de Python
+        analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
+        print(analysis_dict)
+        
+        # Guardar los valores en variables
+        cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
+        motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
+        resumen_conversation = analysis_dict.get('resumen_conversation')
+        nivel_nps = analysis_dict.get('nivel_nps')
+        inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
+        nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
+        sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
+        puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
+        inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
+        tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
+        detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
+        
+        # Conectar a la base de datos
+        conn = connect()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        update_query = """
+            UPDATE respond_io.conversation
+            SET satisfied_customer = %s,
+                reason_dissatisfaction = %s,
+                conversation_summary = %s,
+                nps_level = %s,
+                concern_resolved = %s,
+                agent_attention_level = %s,
+                suggestion_improvement = %s,
+                attention_points_workflow = %s,
+                inconvenience_language_barrier = %s,
+                incorrect_attention_time = %s,
+                detail_time_attention = %s
+            WHERE conversation_cod = %s
+        """
+        
+        cursor.execute(update_query, (
+            cliente_satisfecho,
+            motivo_insatisfaccion,
+            resumen_conversation,
+            nivel_nps,
+            inquietud_resuelta,
+            nivel_atencion_agente,
+            sugerencia_mejora,
+            puntos_atencion_workflow,
+            inconveniente_barrera_idiomatica,
+            tiempo_atencion_incorrecto,
+            detalle_tiempo_atencion,
+            conversation_cod
+        ))
+        conn.commit()
+        print("Datos actualizados correctamente en la tabla respond_io.conversation")
+        cursor.close()
+        conn.close()
+        
+        
         # Enviar un correo electrónico con el análisis
         sender = 'respond@arqintelix.biz'
-        recipient = 'jvaldes@intelix.biz'
-        cc='projas@intelix.biz'
-        subject = "Respond.io | Notificación de mensaje fuera de horario"
-        body_text = "Respond.io | Notificación de mensaje fuera de horario"
+        recipient = ['jvaldes@intelix.biz']
+        cc=['projas@intelix.biz']
+        subject = "Respond.io | Analisis conversacion"
+        body_text = "Respond.io | Analisis Conversacion"
         body_html = f"""
         <html>
         <head>
@@ -256,6 +315,7 @@ def lambda_handler(event, context):
         }
     
     except Exception as ex:
+        print(f"Error al analizar la conversación: {str(ex)}")
         return {
             'statusCode': 500,
             'body': json.dumps({'error': str(ex)})
