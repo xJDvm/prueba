@@ -7,18 +7,21 @@ from respondfunctions.emailbody_store import build_html_store
 from datetime import datetime, timedelta, timezone
 
 
-def get_contact_info(contact_id, conn):
+def get_contact_info(store, conn):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cursor.execute("SELECT lider_email FROM respond_io.contacts WHERE contact_id = %s", (str(contact_id),))
-        contact = cursor.fetchone()
-        lider_email = contact['lider_email'] if contact else None
+        
+        # Obtener store_emails
+        print(cursor.mogrify("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,)).decode('utf-8'))
+        cursor.execute("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,))
+        store_emails = [row['email'] for row in cursor.fetchall()]
+        
         cursor.close()
     except psycopg2.Error as e:
         print(f"Database error: {e}")
-        lider_email = None
+        store_emails = []
     
-    return json.dumps({"lider_email": lider_email})
+    return json.dumps({"store_emails": store_emails})
 
 def get_photos_after_time(conn, current_time, contact_id):
     try:
@@ -41,6 +44,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         AND contact_id = %s
         """
         
+        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
@@ -74,6 +78,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         AND contact_id = %s
         """
                 
+        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
@@ -100,18 +105,26 @@ def lambda_handler(event, context):
             data = message["detail"]
             contact_name = data["firstName"] + " " + data["lastName"]
             contact_id = data["id"]
+
+            print(data)
             
             # Verificar si el dato 'store' está presente en el cuerpo del mensaje
             if 'store' in data:
                 
+                store = data["store"]
+                
                 conn = connect()
                 current_time = data["time"]
                 
+                contact_info = get_contact_info(store, conn)
                 messages_array = get_messages_after_time(conn, current_time, contact_id)
                 photos_array = get_photos_after_time(conn, current_time, contact_id)
+                
+                store_emails = json.loads(contact_info)["store_emails"]
+                
+                
                 conn.close()
                 
-                store = data["store"]
                 client_name = contact_name
                 client_email = data["client_email"]
                 client_phone = data["client_phone"]
@@ -125,17 +138,6 @@ def lambda_handler(event, context):
                 print(data)
                 
                 
-                store_assignee_map = {
-                    "Curridabat": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
-                    "Escazú": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
-                    "Belén": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
-                    "Tibás": ['projas@intelix.biz', 'jvaldes@intelix.biz'],
-                    "Desamparados": ['projas@intelix.biz', 'jvaldes@intelix.biz']
-                }
-                
-                
-                
-                store_assignee = store_assignee_map.get(store, [])
                 
                 
                 e = {
@@ -152,8 +154,10 @@ def lambda_handler(event, context):
                 
                 body = build_html_store(e)
                 
+                print(f"recipient: ", store_emails )
+                
                 sender = 'respond@arqintelix.biz'
-                recipient = store_assignee
+                recipient = store_emails
                 cc=[lider_email]
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
