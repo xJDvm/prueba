@@ -470,7 +470,7 @@ Resources:
       ResourceId: !Ref RespondUserAPIResource
       RestApiId: !Ref respondApiGateway
       AuthorizationType: NONE
-      HttpMethod: POST
+      HttpMethod: GET
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
@@ -685,13 +685,13 @@ Resources:
 
 
 
-## MessageRecievedSNS
-  MessageRecievedSNS:
+## MessageReceivedSNS
+  MessageReceivedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: MessageRecievedSNS
+      TopicName: MessageReceivedSNS
 
-  MessageRecievedSNSRule:
+  MessageReceivedSNSRule:
     Type: AWS::Events::Rule
     Properties:
       EventBusName: !Ref RespondEventBus
@@ -702,10 +702,10 @@ Resources:
           event_type:
             - message.received
       Targets:
-        - Arn: !Ref MessageRecievedSNS
-          Id: MessageRecievedSNSRule
+        - Arn: !Ref MessageReceivedSNS
+          Id: MessageReceivedSNSRule
 
-  MessageRecievedSNSPolicy:
+  MessageReceivedSNSPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
       PolicyDocument:
@@ -714,12 +714,12 @@ Resources:
           Principal:
             Service: events.amazonaws.com
           Action: sns:Publish
-          Resource: !Ref MessageRecievedSNS
+          Resource: !Ref MessageReceivedSNS
           Condition:
             ArnEquals:
-              aws:SourceArn: !GetAtt MessageRecievedSNSRule.Arn
+              aws:SourceArn: !GetAtt MessageReceivedSNSRule.Arn
       Topics:
-        - !Ref MessageRecievedSNS
+        - !Ref MessageReceivedSNS
 
 
 ## MessageSentSNS
@@ -1153,7 +1153,7 @@ Resources:
   KeywordsDetectedSNSSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
-      TopicArn: !Ref MessageRecievedSNS
+      TopicArn: !Ref MessageReceivedSNS
       Protocol: sqs
       Endpoint: !GetAtt KeywordsDetectedSNSSQS.Arn
 
@@ -1170,7 +1170,7 @@ Resources:
           Resource: !GetAtt KeywordsDetectedSNSSQS.Arn
           Condition:
             ArnEquals:
-              aws:SourceArn: !Ref MessageRecievedSNS
+              aws:SourceArn: !Ref MessageReceivedSNS
       Queues:
         - !Ref KeywordsDetectedSNSSQS   
 
@@ -1185,7 +1185,7 @@ Resources:
   SaveMessageReceivedToDatabaseSNSSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
-      TopicArn: !Ref MessageRecievedSNS
+      TopicArn: !Ref MessageReceivedSNS
       Protocol: sqs
       Endpoint: !GetAtt SaveMessageReceivedToDatabaseSNSSQS.Arn
 
@@ -1202,7 +1202,7 @@ Resources:
           Resource: !GetAtt SaveMessageReceivedToDatabaseSNSSQS.Arn
           Condition:
             ArnEquals:
-              aws:SourceArn: !Ref MessageRecievedSNS
+              aws:SourceArn: !Ref MessageReceivedSNS
       Queues:
         - !Ref SaveMessageReceivedToDatabaseSNSSQS   
 
