@@ -5,6 +5,12 @@ from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
 from datetime import datetime, timedelta, timezone
+import re
+
+
+def is_valid_email(email):
+    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return re.match(regex, email) is not None
 
 
 def get_contact_info(store, conn):
@@ -15,6 +21,8 @@ def get_contact_info(store, conn):
         print(cursor.mogrify("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,)).decode('utf-8'))
         cursor.execute("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,))
         store_emails = [row['email'] for row in cursor.fetchall()]
+        
+        print(f"store_emails: {store_emails}")
         
         cursor.close()
     except psycopg2.Error as e:
@@ -133,7 +141,7 @@ def lambda_handler(event, context):
                 incoming_messages = messages_array
                 incoming_photos = photos_array
                 
-                lider_email = data["lider_email"]
+                lider_email = data["lider_email"] if data["lider_email"] else 'jvaldes@intelix.biz'
                 
                 print(data)
                 
@@ -157,8 +165,12 @@ def lambda_handler(event, context):
                 print(f"recipient: ", store_emails )
                 
                 sender = 'respond@arqintelix.biz'
-                recipient = store_emails
-                cc=[lider_email]
+                recipient = [email for email in store_emails if is_valid_email(email)]
+                if not recipient:
+                    recipient = ['jvaldes@intelix.biz']
+                    print("No valid store emails found, using default recipient.")
+                    print(recipient)
+                cc = [lider_email] if is_valid_email(lider_email) else []
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body
@@ -175,7 +187,7 @@ def lambda_handler(event, context):
                 agent_value = data["agent"]
                 document_value = data["client_identification"]
                 
-                asesor_email = data["asesor_email"]
+                asesor_email = data["asesor_email"] if data['asesor_email'] else 'jvaldes@intelix.biz'
                 
 
                 
@@ -183,7 +195,12 @@ def lambda_handler(event, context):
             
                                 
                 sender = 'respond@arqintelix.biz'
-                recipient = [asesor_email]
+                recipient = [email for email in [asesor_email] if is_valid_email(email)]
+                if not recipient:
+                    recipient = ['jvaldes@intelix.biz']
+                    print("No valid asesor email found, using default recipient.")
+                    print(recipient)
+                cc = []
                 bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
@@ -192,7 +209,7 @@ def lambda_handler(event, context):
                 if not all([sender, recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc)
+                send_email(sender, recipient, subject, body_text, body_html, cc, bcc)
                 
 
         except Exception as e:

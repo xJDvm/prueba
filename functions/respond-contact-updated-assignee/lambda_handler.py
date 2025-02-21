@@ -18,11 +18,35 @@ def handle_create_contact(data):
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Buscar el contacto en la tabla respond_io.contacts
-    select_query = "SELECT contact_id FROM respond_io.contacts WHERE contact_id = %s"
+    select_query = "SELECT * FROM respond_io.contacts WHERE contact_id = %s"
     cursor.execute(select_query, (contact_id,))
     contact = cursor.fetchone()
 
     if contact:
+        insert_query = """
+            INSERT INTO respond_io.contacts_moved (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (
+            contact['contact_id'], 
+            contact['firstname'], 
+            contact['lastname'], 
+            contact['phone'], 
+            contact['email'], 
+            contact['status'],
+            contact['assignee_id'],
+            contact['assignee_firstname'],
+            contact['assignee_lastname'],
+            contact['assignee_email'], 
+            contact['client_identification'], 
+            contact['asesor_name'], 
+            contact['asesor_email'], 
+            contact['lider_email'],
+            contact['dl_created_at'], 
+            dl_modified_at
+        ))
+        
+        
         # Actualizar los datos del assignee en la tabla respond_io.contacts
         update_query = """
             UPDATE respond_io.contacts

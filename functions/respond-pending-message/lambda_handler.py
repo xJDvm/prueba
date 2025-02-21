@@ -6,8 +6,6 @@ from respondfunctions.emailbody_asesor import build_html
 from datetime import datetime
 from botocore.exceptions import ClientError
 
-
-
 def lambda_handler(event, context):
 
     try:
@@ -28,16 +26,20 @@ def lambda_handler(event, context):
 
         for conversation in conversations:
             try:
+                print(f"Conversacion: {conversation}")
+                
                 time_last_mess_in = conversation['time_last_mess_in']
                 time_last_mess_out = conversation['time_last_mess_out'] if conversation['time_last_mess_out'] else None
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']
+                
+                last_hour = time_last_mess_out if time_last_mess_out else 'No hay mensajes salientes'
 
                 client_identification = conversation['client_identification']
                 assignee_name = conversation['assignee_name']
                 full_name = conversation['full_name']
                 
-                assignee_email = conversation['assignee_email']
+                assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else 'jvaldes@intelix.biz'
                 lider_email = conversation['lider_email'] if conversation['lider_email'] else None
                 
                 bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
@@ -48,7 +50,7 @@ def lambda_handler(event, context):
                 
                 if time_since_last_in >= 3 and not responded_after_client and not mark_30min:
                     subject = "Respond.io | Notificación de mensaje pendiente (30 min)"
-                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, time_last_mess_out)
+                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:
                         send_email('respond@arqintelix.biz', [assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
@@ -59,7 +61,7 @@ def lambda_handler(event, context):
 
                 elif time_since_last_in >= 6 and not responded_after_client and not mark_60min:
                     subject = "Respond.io | Notificación de mensaje pendiente (60 min)"
-                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, time_last_mess_out)
+                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:
                         send_email('respond@arqintelix.biz', [assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
@@ -78,4 +80,3 @@ def lambda_handler(event, context):
     except Exception as e:
         print(f'ERROR: {e}')
         print("Error al ejecutar la lambda")
-

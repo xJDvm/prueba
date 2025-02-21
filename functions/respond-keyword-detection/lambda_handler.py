@@ -56,7 +56,7 @@ def lambda_handler(event, context):
                     lider_email = contact_info['lider_email'] if contact_info else []
                     
                     sender = 'respond@arqintelix.biz'
-                    recipient = [assignee_email]
+                    recipient = [assignee_email] if assignee_email else ['jvaldes@intelix.biz']
                     cc = [lider_email] if lider_email else []
                     bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
                     subject = "Respond.io | Notificación palabra clave detectada"
