@@ -5,7 +5,6 @@ from lambda_response import lambda_response
 from status_http import HttpStatus
 
 def lambda_handler(event, context):
-    print(event)
 
     if event is None:
         return lambda_response(HttpStatus.BAD_REQUEST, {"error": "Event is None"})
@@ -26,10 +25,8 @@ def lambda_handler(event, context):
         try:
             # Conexión a la base de datos
             conn = connect()
-            print(conn)
         except Exception as e:
-            print('error en la conexión a la base de datos')
-            print(e)
+            print(f'error en la conexión a la base de datos: {e}')
             return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": "Database connection failed"})
 
         # Crear un cursor
@@ -38,7 +35,6 @@ def lambda_handler(event, context):
         try:
             # Usar un parámetro en la consulta SQL para obtener datos del cliente
             cursor.execute("SELECT * FROM respond_io.clients WHERE client_identification_number = %s", (customer_identification,))
-            print('consulta exitosa')
 
             rows = cursor.fetchall()
 
@@ -48,7 +44,6 @@ def lambda_handler(event, context):
 
                 # Consulta adicional para obtener el client_type
                 client_type_id = customer_info['client_type']
-                print(client_type_id)
                 cursor.execute("SELECT client_type FROM respond_io.client_types WHERE client_types_code = %s", (client_type_id,))
                 client_type_row = cursor.fetchone()
                 if client_type_row:

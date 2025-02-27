@@ -2,9 +2,11 @@ import json
 import psycopg2.extras
 import datetime
 from dbconnection.dbconnection import connect
+from respondfunctions.send_respond_comment import create_comment
 from lambda_response import lambda_response
 from status_http import HttpStatus
 from datetime import datetime, timezone, timedelta
+
 
 def is_within_business_hours(timestamp):
     # Convertir el timestamp de milisegundos a datetime en UTC
@@ -136,6 +138,7 @@ def handle_location_message(data):
     address = data["message"]["message"]["address"]
     message_datatype = data["message"]["message"]["type"]
     
+    
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
     message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     
@@ -163,6 +166,74 @@ def handle_location_message(data):
     conn.close()
     print("Datos insertados correctamente en la tabla respond_io.messages")
     
+def handle_email_message(data):
+    contact_id = data["contact"]["id"]
+    assignado_id = data["contact"]["assignee"]["id"]
+    message_id = data["message"]["messageId"]
+    message_classification = data["message"]["message"]["type"]
+    timestamp = data["message"]["timestamp"]
+    channel_id = data["channel"]["id"]
+    message_type = data["event_type"]
+    message_datatype = data["message"]["message"]["type"]
+    
+    text_message = data["message"]["message"]["message"]
+    
+    attachments = data["message"]["message"].get("attachments", [])
+
+    if attachments:
+        message_datatype = [attachment["type"] for attachment in attachments]
+        filename = [attachment["fileName"] for attachment in attachments]
+        url = [attachment["url"] for attachment in attachments]
+    else: 
+        message_datatype = data["message"]["message"]["type"]
+        filename = []
+        url = []
+    
+    
+    # Convertir el timestamp de milisegundos a segundos y luego a datetime
+    message_timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    
+    data_json = json.dumps(data, ensure_ascii=False)
+    
+    mark_after_hours = False
+    within_business_hours = is_within_business_hours(timestamp)
+    
+    if not within_business_hours:
+        mark_after_hours = True
+    
+    dl_created_at = datetime.now().isoformat()
+    dl_modified_at = datetime.now().isoformat()
+    dl_condition = 'Active'
+    
+    conn = connect()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    insert_query = """
+        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print("Datos insertados correctamente en la tabla respond_io.messages")
+
+
+def handle_unsupported_message(data):
+    contact_id = data["contact"]["id"]
+    
+    message = 'Se ha recibido un mensaje no soportado.'
+    
+    if data["message"]["message"]["payload"]["type"] == "contacts":
+        contacts = data["message"]["message"]["payload"]["contacts"]
+        contact_details = []
+        for contact in contacts:
+            name = contact.get("name", {}).get("formatted_name", "")
+            phone = contact["phones"][0].get("phone", "")
+            contact_details.append(f'{name} - {phone}')
+        message = f'Se ha recibido un mensaje no soportado de tipo "Contacto" con los datos: {", ".join(contact_details)}'
+    
+    create_comment(message, contact_id)
+
 
 def handle_update_conversation(data):
     timestamp = data["message"]["timestamp"]
@@ -195,7 +266,9 @@ def lambda_handler(event, context):
     message_handlers = {
         'text': handle_text_message,
         'attachment': handle_attachment_message,
-        'location': handle_location_message
+        'location': handle_location_message,
+        'email': handle_email_message,
+        'unsupported': handle_unsupported_message
     }
 
     for record in event["Records"]:
