@@ -78,7 +78,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
 
         select_query = """
-        SELECT text_message 
+        SELECT message_text 
         FROM respond_io.messages 
         WHERE message_type = 'message.received' 
         AND message_classification = 'text' 
@@ -90,7 +90,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
-        messages = [row['text_message'] for row in rows]
+        messages = [row['message_text'] for row in rows]
         messages_array = " - ".join(messages)
         
         cursor.close()

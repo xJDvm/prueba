@@ -34,8 +34,9 @@ def get_conversation_messages(conversation_cod):
             ORDER BY message_timestamp ASC
         """
         cursor.execute(query, (conversation_cod,))
-        print(cursor.mogrify(query, (conversation_cod,)).decode('utf-8'))
+        # print(cursor.mogrify(query, (conversation_cod,)).decode('utf-8'))
         messages = cursor.fetchall()
+        print(messages)
     except Exception as e:
         logger.error(f"Error al ejecutar la consulta: {str(e)}")
         return {
@@ -56,7 +57,7 @@ def get_conversation_messages(conversation_cod):
     # Formatear cada mensaje
     for message in messages:
         formatted_message = {
-            "assignado_id": message['assignado_id'],
+            "assigned_user_id": message['assigned_user_id'],
             "message": {
                 "messageId": message['message_id'],
                 "timestamp": int(message['message_timestamp'].timestamp() * 1000),  # Convertir a milisegundos
@@ -70,14 +71,14 @@ def get_conversation_messages(conversation_cod):
         # Determinar el tipo de mensaje y formatear según corresponda
         if message['message_datatype'] == 'text':
             formatted_message['message']['content'] = {
-                'text': message['text_message']
+                'text': message['message_text']
             }
         elif message['message_datatype'] == 'attachment':
             formatted_message['message']['content'] = {
                 'filename': message['filename'],
                 'url': message['url'],
-                'text_message': message['text_message'],  # Incluir text_message
-                'description': message['text_message']  # Usamos text_message para la descripción
+                'message_text': message['message_text'],  # Incluir message_text
+                'description': message['message_text']  # Usamos message_text para la descripción
             }
         elif message['message_datatype'] == 'location':
             formatted_message['message']['content'] = {
@@ -92,7 +93,7 @@ def get_conversation_messages(conversation_cod):
         elif message['message_datatype'] == 'quick_reply':
             formatted_message['message']['content'] = {
                 'type': 'quick_reply',
-                'text_message': message['text_message'],  # Incluir text_message
+                'message_text': message['message_text'],  # Incluir message_text
                 'replies': json.loads(message['replies'])  # Parsear replies desde JSON
             }
         
@@ -121,7 +122,7 @@ def format_conversation(messages):
         elif message['message']['datatype'] == 'template':
             text = f"Plantilla: {content.get('template_id', '')}"
         elif message['message']['datatype'] == 'quick_reply':
-            text = f"Respuesta rápida: {content.get('text_message', '')} - Opciones: {', '.join(content.get('replies', []))}"
+            text = f"Respuesta rápida: {content.get('message_text', '')} - Opciones: {', '.join(content.get('replies', []))}"
         else:
             text = "Mensaje no reconocido"
         
@@ -140,19 +141,34 @@ def analyze_conversation_with_bedrock(conversation):
     try:
         # Construir el prompt para el análisis
         prompt = (
-            "Analiza la siguiente conversación que involucra a un cliente y un agente. "
+            "Analiza la conversación entre un cliente y un agente tomando en cuenta los siguientes criterios antes de determinar el nivel de atención del agente:\n"
+            "- Evalúa si el cliente realmente interactuó con el agente antes de concluir que el nivel de atención fue deficiente.\n"
+            "- Si el cliente no respondió o no completó el workflow, no penalices al agente injustamente.\n"
+            "- Calcula correctamente los tiempos de respuesta del agente sin incluir períodos en los que el cliente no interactuó.\n"
+            "- Un tiempo de atención incorrecto se considera solo si la marca del ultimo mensaje enviado por el cliente y la primera respuesta del asesor supera los 30 minutos.\n\n"
             "Responde únicamente en formato JSON con los siguientes campos:\n"
-            '- "cliente_satisfecho": "si" o "no".\n'
-            '- "motivo_insatisfaccion": si el cliente está insatisfecho, indica el motivo; de lo contrario, una cadena vacía.\n'
-            '- "resumen_conversation": un resumen breve de la conversación.\n'
-            '- "nivel_nps": un valor numérico (asegúrate de que siempre sea un número, sin descripciones textuales).\n'
-            '- "inquietud_resuelta": "si" o "no".\n'
-            '- "nivel_atencion_agente": uno de los siguientes: "profesional", "poco profesional", "grosero", "atento", "amable".\n'
-            '- "sugerencia_mejora": si existe oportunidad de mejora para el agente, proporciona una sugerencia concreta; de lo contrario, una cadena vacía.\n'
-            '- "puntos_atencion_workflow": indica puntos de atención en el workflow basados en los comentarios, si los hubiese; de lo contrario, una cadena vacía.\n'
-            '- "inconveniente_barrera_idiomatica": "si" o "no", detectando si existen inconvenientes por barreras idiomáticas. Si es "si", opcionalmente puedes incluir detalles en un campo adicional "detalle_barrera_idiomatica"; de lo contrario, déjalo vacío.\n'
-            '- "tiempo_atencion_incorrecto": "si" o "no". Si la conversación incluye marcas de tiempo, determina si el tiempo de atención fue incorrecto; de lo contrario, asigna "no".\n'
-            '- "detalle_tiempo_atencion": una explicación del valor asignado en "tiempo_atencion_incorrecto" si corresponde; de lo contrario, una cadena vacía.\n'
+            '{\n'
+            '  "cliente_satisfecho": "si | no",\n'
+            '  "motivo_insatisfaccion": "Si el cliente está insatisfecho, indica el motivo; de lo contrario, una cadena vacía.",\n'
+            '  "resumen_conversacion": "Resumen breve de la conversación.",\n'
+            '  "nivel_nps": "Número entero entre 0 y 10 (sin descripciones textuales).",\n'
+            '  "inquietud_resuelta": "si | no",\n'
+            '  "nivel_atencion_agente": "Enum: profesional | poco profesional | grosero | atento | amable",\n'
+            '  "sugerencia_mejora": "Si existe oportunidad de mejora para el agente, proporciona una sugerencia concreta; de lo contrario, una cadena vacía.",\n'
+            '  "puntos_atencion_workflow": "Indica puntos de atención en el workflow basados en los comentarios, si los hubiese; de lo contrario, una cadena vacía.",\n'
+            '  "inconveniente_barrera_idiomatica": "si | no",\n'
+            '  "detalle_barrera_idiomatica": "Si existe barrera idiomática, detalla la dificultad encontrada; de lo contrario, una cadena vacía.",\n'
+            '  "tiempo_atencion_incorrecto": "si | no. Se asigna \'sí\' solo si el tiempo entre el primer mensaje del cliente y la primera respuesta del asesor supera los 30 minutos.",\n'
+            '  "detalle_tiempo_atencion": "Explicación del valor asignado en tiempo_atencion_incorrecto si corresponde; de lo contrario, una cadena vacía.",\n'
+            '  "tiempo_promedio_respuesta_primera_interaccion": "Número en minutos. Calcula el tiempo transcurrido desde el último mensaje del cliente hasta la primera respuesta del asesor.",\n'
+            '  "tiempo_promedio_respuesta": "Número en minutos. Calcula el tiempo promedio de respuesta del asesor sin incluir períodos en los que el cliente no interactúa.",\n'
+            '  "tiempo_total_resolucion": "Número en minutos. Calcula el tiempo total desde el primer mensaje del cliente hasta la resolución de la consulta.",\n'
+            '  "cantidad_interacciones": "Número entero. Cuantifica cuántos mensajes intercambiaron el cliente y el agente antes de llegar a una conclusión.",\n'
+            '  "desviacion_tiempo_respuesta": "Número en minutos. Calcula la desviación estándar de los tiempos de respuesta del asesor para identificar respuestas fuera del promedio.",\n'
+            '  "conversacion_abandonada_cliente": "si | no. Determina si el cliente dejó de interactuar sin cerrar la conversación.",\n'
+            '  "conversacion_abandonada_asesor": "si | no. Determina si el asesor dejó de responder antes de que la consulta fuera resuelta, sin aviso o seguimiento.",\n'
+            '  "analisis_sentimiento_cliente": "Enum: positivo | neutral | negativo. Evalúa el tono del cliente basándose en sus mensajes."\n'
+            '}'
         )
 
         body = {
@@ -229,15 +245,24 @@ def lambda_handler(event, context):
         # Guardar los valores en variables
         cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
         motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
-        resumen_conversation = analysis_dict.get('resumen_conversation')
+        resumen_conversation = analysis_dict.get('resumen_conversacion')
         nivel_nps = analysis_dict.get('nivel_nps')
         inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
         nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
         sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
         puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
         inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
+        detalle_barrera_idiomatica = analysis_dict.get('detalle_barrera_idiomatica')
         tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
         detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
+        tiempo_promedio_respuesta_primera_interaccion = analysis_dict.get('tiempo_promedio_respuesta_primera_interaccion')
+        tiempo_promedio_respuesta = analysis_dict.get('tiempo_promedio_respuesta')
+        tiempo_total_resolucion = analysis_dict.get('tiempo_total_resolucion')
+        cantidad_interacciones = analysis_dict.get('cantidad_interacciones')
+        desviacion_tiempo_respuesta = analysis_dict.get('desviacion_tiempo_respuesta')
+        conversacion_abandonada_cliente = analysis_dict.get('conversacion_abandonada_cliente')
+        conversacion_abandonada_asesor = analysis_dict.get('conversacion_abandonada_asesor')
+        analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
         
         # Conectar a la base de datos
         conn = connect()
@@ -245,17 +270,26 @@ def lambda_handler(event, context):
         
         update_query = """
             UPDATE respond_io.conversation
-            SET satisfied_customer = %s,
-                reason_dissatisfaction = %s,
+            SET customer_satisfaction = %s,
+                dissatisfaction_reason = %s,
                 conversation_summary = %s,
                 nps_level = %s,
                 concern_resolved = %s,
                 agent_attention_level = %s,
-                suggestion_improvement = %s,
-                attention_points_workflow = %s,
-                inconvenience_language_barrier = %s,
-                incorrect_attention_time = %s,
-                detail_time_attention = %s
+                improvement_suggestion = %s,
+                workflow_attention_points = %s,
+                language_barrier_issue = %s,
+                language_barrier_details = %s,
+                incorrect_response_time = %s,
+                response_time_details = %s,
+                avg_first_response_time = %s,
+                avg_response_time = %s,
+                total_resolution_time = %s,
+                interaction_count = %s,
+                response_time_deviation = %s,
+                abandoned_by_client = %s,
+                abandoned_by_agent = %s,
+                customer_sentiment_analysis = %s
             WHERE conversation_cod = %s
         """
         
@@ -269,8 +303,17 @@ def lambda_handler(event, context):
             sugerencia_mejora,
             puntos_atencion_workflow,
             inconveniente_barrera_idiomatica,
+            detalle_barrera_idiomatica,
             tiempo_atencion_incorrecto,
             detalle_tiempo_atencion,
+            tiempo_promedio_respuesta_primera_interaccion,
+            tiempo_promedio_respuesta,
+            tiempo_total_resolucion,
+            cantidad_interacciones,
+            desviacion_tiempo_respuesta,
+            conversacion_abandonada_cliente,
+            conversacion_abandonada_asesor,
+            analisis_sentimiento_cliente,
             conversation_cod
         ))
         conn.commit()
@@ -296,7 +339,7 @@ def lambda_handler(event, context):
             <p><strong>Contact ID:</strong> {response['contact_id']}</p>
             <h2>Messages:</h2>
             <ul>
-            {''.join(f"<li><strong>{msg['message']['timestamp']} - {msg['assignado_id']}:</strong> {msg['message']['content']}</li>" for msg in response['messages'])}
+            {''.join(f"<li><strong>{msg['message']['timestamp']} - {msg['assigned_user_id']}:</strong> {msg['message']['content']}</li>" for msg in response['messages'])}
             </ul>
             <h2>Analysis:</h2>
             <pre>{json.dumps(response['analysis'], indent=4, ensure_ascii=False)}</pre>

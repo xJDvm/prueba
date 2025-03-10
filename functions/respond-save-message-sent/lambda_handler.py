@@ -40,11 +40,11 @@ def is_within_business_hours(timestamp):
 
 def handle_text_message(data):
     contact_id = data["contact"]["id"]
-    assignado_id = data["contact"]["assignee"]["id"]
+    assigned_user_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
-    text_message = data["message"]["message"]["text"]
+    message_text = data["message"]["message"]["text"]
     channel_id = data["channel"]["id"]
     message_type = data["event_type"]
     message_datatype = data["message"]["message"]["type"]
@@ -74,13 +74,13 @@ def handle_text_message(data):
     insert_query = """
         INSERT INTO respond_io.messages (
             contact_id, 
-            assignado_id, 
+            assigned_user_id, 
             message_id, 
             message_classification, 
             message_timestamp, 
             message_type, 
             message_datatype, 
-            text_message, 
+            message_text, 
             channel_id, 
             dl_created_at, 
             dl_modified_at, 
@@ -94,13 +94,13 @@ def handle_text_message(data):
     """
     cursor.execute(insert_query, (
         contact_id, 
-        assignado_id, 
+        assigned_user_id, 
         message_id, 
         message_classification, 
         message_timestamp, 
         message_type, 
         message_datatype, 
-        text_message, 
+        message_text, 
         channel_id, 
         dl_created_at, 
         dl_modified_at, 
@@ -117,7 +117,7 @@ def handle_text_message(data):
 
 def handle_attachment_message(data):
     contact_id = data["contact"]["id"]
-    assignado_id = data["contact"]["assignee"]["id"]
+    assigned_user_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
@@ -153,10 +153,10 @@ def handle_attachment_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, text_message, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
     conn.commit()
     cursor.close()
     conn.close()
@@ -168,7 +168,7 @@ def handle_attachment_message(data):
 
 def handle_template_message(data):
     contact_id = data["contact"]["id"]
-    assignado_id = data["contact"]["assignee"]["id"]
+    assigned_user_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
@@ -201,10 +201,10 @@ def handle_template_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, template_id, channel_id, data_json, dl_created_at, dl_modified_at, dl_condition, mark_after_hours, message_user, message_workflow)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, template_id, channel_id, data_json, dl_created_at, dl_modified_at, dl_condition, mark_after_hours, message_user, message_workflow)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, template_id, channel_id, data_json, dl_created_at, dl_modified_at, dl_condition, mark_after_hours, message_user, message_workflow))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, template_id, channel_id, data_json, dl_created_at, dl_modified_at, dl_condition, mark_after_hours, message_user, message_workflow))
     conn.commit()
     cursor.close()
     conn.close()
@@ -213,7 +213,7 @@ def handle_template_message(data):
 
 def handle_quick_reply_message(data):
     contact_id = data["contact"]["id"]
-    assignado_id = data["contact"]["assignee"]["id"]
+    assigned_user_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
@@ -246,10 +246,10 @@ def handle_quick_reply_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_text, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, replies,  channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, replies,  channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
     conn.commit()
     cursor.close()
     conn.close()
@@ -282,15 +282,16 @@ def handle_update_conversation(data):
 def handle_email_message(data):
     
     contact_id = data["contact"]["id"]
-    assignado_id = data["contact"]["assignee"]["id"]
+    assigned_user_id = data["contact"]["assignee"]["id"]
     message_id = data["message"]["messageId"]
     message_classification = data["message"]["message"]["type"]
+    message_subject = data["message"]["message"]["subject"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
     message_type = data["event_type"]
     message_datatype = data["message"]["message"]["type"]
     
-    text_message = data["message"]["message"]["message"]
+    message_text = data["message"]["message"]["message"]
     
     attachments = data["message"]["message"].get("attachments", [])
 
@@ -322,10 +323,10 @@ def handle_email_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assignado_id, message_id, message_classification, message_timestamp, message_type, message_datatype, text_message, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()
