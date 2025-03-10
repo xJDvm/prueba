@@ -8,7 +8,7 @@ def build_html(asesor_name, client_id, client_name, client_identification, messa
         <meta name="x-apple-disable-message-reformatting">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta content="telephone=no" name="format-detection">
-        <title>RespondIO Mensaje Pendiente</title><!--[if (mso 16)]>
+        <title>RespondIO - QA Mensaje Pendiente</title><!--[if (mso 16)]>
           <style type="text/css">
           a {{text-decoration: none;}}
           </style>
@@ -160,7 +160,7 @@ def build_html(asesor_name, client_id, client_name, client_identification, messa
                         <td align="left" style="padding:0;Margin:0;width:447px">
                         <table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                           <tr>
-                            <td align="right" class="es-text-6853" style="padding:0;Margin:0"><h3 class="es-m-txt-c" style="Margin:0;font-family:verdana, geneva, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:18px;font-style:normal;font-weight:normal;line-height:27px;color:#0b5394"><strong>Respond.io | Mensaje Pendiente</strong></h3></td>
+                            <td align="right" class="es-text-6853" style="padding:0;Margin:0"><h3 class="es-m-txt-c" style="Margin:0;font-family:verdana, geneva, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:18px;font-style:normal;font-weight:normal;line-height:27px;color:#0b5394"><strong>Respond.io - QA | Mensaje Pendiente</strong></h3></td>
                           </tr>
                         </table></td>
                       </tr>

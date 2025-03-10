@@ -131,7 +131,7 @@ def build_html_store(e):
                                                         <tr>
                                                         <td align="right" class="esd-block-text es-text-6853">
                                                             <h3 class="es-m-txt-c" style="color:#0b5394;font-family:verdana,geneva,sans-serif;font-size:18px;line-height:150%">
-                                                            <strong>Respond.io| Mensaje fuera de horario {store}</strong>
+                                                            <strong>Respond.io - QA | Mensaje fuera de horario {store}</strong>
                                                             </h3>
                                                         </td>
                                                         </tr>

@@ -8,7 +8,7 @@ def build_html_asesor(clientName, clientId, analystName, clientDocument):
         <meta name="x-apple-disable-message-reformatting">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta content="telephone=no" name="format-detection">
-        <title>Respond - Fuera de horario no tienda</title><!--[if (mso 16)]>
+        <title>Respond.io QA - Fuera de horario no tienda</title><!--[if (mso 16)]>
           <style type="text/css">
           a {{text-decoration: none;}}
           </style>
@@ -164,7 +164,7 @@ def build_html_asesor(clientName, clientId, analystName, clientDocument):
                         <td align="left" style="padding:0;Margin:0;width:447px">
                         <table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                           <tr>
-                            <td align="right" class="es-text-6853" style="padding:0;Margin:0"><h3 class="es-m-txt-c" style="Margin:0;font-family:verdana, geneva, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:18px;font-style:normal;font-weight:normal;line-height:27px;color:#0b5394"><strong>Respond.io | Mensaje fuera de horario: Sin contacto a tienda.</strong></h3></td>
+                            <td align="right" class="es-text-6853" style="padding:0;Margin:0"><h3 class="es-m-txt-c" style="Margin:0;font-family:verdana, geneva, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;font-size:18px;font-style:normal;font-weight:normal;line-height:27px;color:#0b5394"><strong>Respond.io - QA | Mensaje fuera de horario: Sin contacto a tienda.</strong></h3></td>
                           </tr>
                         </table></td>
                       </tr>
