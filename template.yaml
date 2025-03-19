@@ -397,13 +397,67 @@ Resources:
 
 
 ### Se crea el método post donde ocurre la "magia" de publicar al eventbridge. 
+  # RespondWorkflowApiPostMethod:
+  #   Type: AWS::ApiGateway::Method
+  #   Properties:
+  #     ResourceId: !Ref RespondWorkflowAPIResource
+  #     RestApiId: !Ref respondApiGateway
+  #     AuthorizationType: NONE
+  #     # ApiKeyRequired: true
+  #     HttpMethod: POST
+  #     MethodResponses:
+  #       - StatusCode: 200
+  #         ResponseModels:
+  #           application/json: Empty
+  #         ResponseParameters:
+  #           method.response.header.Access-Control-Allow-Headers: true
+  #           method.response.header.Access-Control-Allow-Methods: true
+  #           method.response.header.Access-Control-Allow-Origin: true
+  #     RequestParameters:
+  #       method.request.header.X-Amz-Target: false
+  #       method.request.header.Content-Type: false
+  #     Integration:
+  #       Type: AWS
+  #       IntegrationHttpMethod: POST
+  #       Credentials: !GetAtt ApiGatewayRoleWorkflow.Arn
+  #       Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
+  #       PassthroughBehavior: NEVER
+  #       RequestTemplates:
+  #         application/json: !Sub
+  #           - |
+  #             #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
+  #             #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
+  #             #set($inputRoot = $input.json('$'))
+  #             {
+  #                 "Entries": [
+  #                     {
+  #                         "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
+  #                         "DetailType": "EventBridge from APIGW",
+  #                         "EventBusName": "${EventBusName}",
+  #                         "Source": "respondio.webhook"
+  #                     }
+  #                 ]
+  #             }
+  #           - EventBusName: !Ref RespondWorkflowEventBus
+  #       IntegrationResponses:
+  #         - StatusCode: 200
+  #           ResponseTemplates:
+  #             application/json: |-
+  #               #set($val = $input.path('$.Entries[0].EventId'))
+  #               {
+  #                 "response": "$val"
+  #               }
+  #           ResponseParameters:
+  #             method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
+  #             method.response.header.Access-Control-Allow-Methods: '''POST'''
+  #             method.response.header.Access-Control-Allow-Origin: '''*'''
+
   RespondWorkflowApiPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
       ResourceId: !Ref RespondWorkflowAPIResource
       RestApiId: !Ref respondApiGateway
       AuthorizationType: NONE
-      # ApiKeyRequired: true
       HttpMethod: POST
       MethodResponses:
         - StatusCode: 200
@@ -420,30 +474,24 @@ Resources:
         Type: AWS
         IntegrationHttpMethod: POST
         Credentials: !GetAtt ApiGatewayRoleWorkflow.Arn
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:sns:action/Publish
         PassthroughBehavior: NEVER
         RequestTemplates:
           application/json: !Sub
             - |
-              #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
-              #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
+              #set($context.requestOverride.header.X-Amz-Target = "SNS.Publish")
+              #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.0")
               #set($inputRoot = $input.json('$'))
               {
-                  "Entries": [
-                      {
-                          "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
-                          "DetailType": "EventBridge from APIGW",
-                          "EventBusName": "${EventBusName}",
-                          "Source": "respondio.webhook"
-                      }
-                  ]
+                  "Message": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
+                  "TopicArn": "${SNSTopicArn}"
               }
-            - EventBusName: !Ref RespondWorkflowEventBus
+            - SNSTopicArn: !Ref RespondSNSGlobal
         IntegrationResponses:
           - StatusCode: 200
             ResponseTemplates:
               application/json: |-
-                #set($val = $input.path('$.Entries[0].EventId'))
+                #set($val = $input.path('$.MessageId'))
                 {
                   "response": "$val"
                 }
@@ -451,8 +499,6 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
               method.response.header.Access-Control-Allow-Methods: '''POST'''
               method.response.header.Access-Control-Allow-Origin: '''*'''
-
-
 
 
 
@@ -495,6 +541,27 @@ Resources:
 
 
 ### Recursos SNS
+
+  RespondSNSGlobal:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWS::StackName}-RespondSNSGlobal
+
+  RespondSNSGlobalPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref RespondSNSGlobal
+          # Condition:
+          #   ArnEquals:
+          #     aws:SourceArn: !GetAtt ContactCreatedtoSNSRule.Arn
+      Topics:
+        - !Ref RespondSNSGlobal
 
 
 ## ContactCreated SNS
