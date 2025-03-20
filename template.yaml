@@ -99,7 +99,7 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora-postgresql
-      EngineVersion: 15.4
+      EngineVersion: 16.6
       Port: 5432
       EngineMode: provisioned
       MasterUsername: !Sub '{{resolve:secretsmanager:${SecretCommonPostgresTempFC}:SecretString:username}}'
@@ -107,7 +107,7 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DBSecurityGroup
-      PreferredMaintenanceWindow: Sun:06:00-Sun:07:00
+      PreferredMaintenanceWindow: Sun:08:00-Sun:09:00
 
   AuroraDBInstance:
     Type: AWS::RDS::DBInstance
