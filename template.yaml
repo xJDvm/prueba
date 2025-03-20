@@ -901,42 +901,6 @@ Resources:
 
 
 
-## RespondRequestSNS
-  RespondRequestSNS:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: RespondRequestSNS
-
-  RespondRequestSNSRule:
-    Type: AWS::Events::Rule
-    Properties:
-      EventBusName: !Ref RespondEventBus
-      EventPattern:
-        source:
-          - respondio.webhook
-        detail:
-          event_type:
-            - get.customer_data
-      Targets:
-        - Arn: !Ref RespondRequestSNS
-          Id: RespondRequestSNSRule
-
-  RespondRequestSNSPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      PolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: events.amazonaws.com
-          Action: sns:Publish
-          Resource: !Ref RespondRequestSNS
-          Condition:
-            ArnEquals:
-              aws:SourceArn: !GetAtt RespondRequestSNSRule.Arn
-      Topics:
-        - !Ref RespondRequestSNS
-
 
 
 
@@ -1017,37 +981,6 @@ Resources:
         - !Ref SaveOutgoingMessagesFromWorkflowSNSSQS 
 
 
-## RespondRequest SQS
-  RespondRequestSNSSQS:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: RespondRequestSNSSQS
-      VisibilityTimeout: 60
-
-  RespondRequestSNSSQSSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref RespondRequestSNS
-      Protocol: sqs
-      Endpoint: !GetAtt RespondRequestSNSSQS.Arn
-
-  RespondRequestSNSSQSSubscriptionPolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: sns.amazonaws.com
-          Action: sqs:SendMessage
-          Resource: !GetAtt RespondRequestSNSSQS.Arn
-          Condition:
-            ArnEquals:
-              aws:SourceArn: !Ref RespondRequestSNS
-      Queues:
-        - !Ref RespondRequestSNSSQS 
-    
 
 
 ## RespondContactSQS
