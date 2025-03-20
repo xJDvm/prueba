@@ -29,6 +29,9 @@ def lambda_handler(event, context):
                 print(f"Conversacion: {conversation}")
                 
                 time_last_mess_in = conversation['time_last_mess_in']
+                if not time_last_mess_in:
+                    print("No existe time_last_mess_in, saltando esta conversación.")
+                    continue
                 time_last_mess_out = conversation['time_last_mess_out'] if conversation['time_last_mess_out'] else None
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']

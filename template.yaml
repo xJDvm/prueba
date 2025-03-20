@@ -114,7 +114,7 @@ Resources:
     Properties:
       DBClusterIdentifier: !Ref AuroraDBCluster
       DBSubnetGroupName: !Ref DBSubnetGroup
-      DBInstanceClass: db.t3.medium
+      DBInstanceClass: db.r8g.large
       Engine: aurora-postgresql
       EnablePerformanceInsights: true
       PerformanceInsightsRetentionPeriod: 31
@@ -1320,7 +1320,7 @@ Resources:
   afterHourNotificationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-after-hour-notification
+      FunctionName: !Sub ${AWS::StackName}-respond-after-hour-notification
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-after-hour-notification/
@@ -1364,7 +1364,7 @@ Resources:
   AfterHourAssignFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-after-hour-assign
+      FunctionName: !Sub ${AWS::StackName}-respond-after-hour-assign
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-after-hour-assign/
@@ -1398,7 +1398,7 @@ Resources:
   KeywordsDetectedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-keyword-detection
+      FunctionName: !Sub ${AWS::StackName}-respond-keyword-detection
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-keyword-detection/
@@ -1440,7 +1440,7 @@ Resources:
   getCustomerDataFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-get-customer-data
+      FunctionName: !Sub ${AWS::StackName}-respond-get-customer-data
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-get-customer-data/
@@ -1470,7 +1470,7 @@ Resources:
   SaveMessageReceivedToDatabaseFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-save-message-received
+      FunctionName: !Sub ${AWS::StackName}-respond-save-message-received
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-received/
@@ -1507,7 +1507,7 @@ Resources:
   SaveMessageSentToDatabaseFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-save-message-sent
+      FunctionName: !Sub ${AWS::StackName}-respond-save-message-sent
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-sent/
@@ -1541,7 +1541,7 @@ Resources:
   ContactCreatedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-contact-created
+      FunctionName: !Sub ${AWS::StackName}-respond-contact-created
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-created/
@@ -1576,7 +1576,7 @@ Resources:
   ContactUpdatedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-contact-updated
+      FunctionName: !Sub ${AWS::StackName}-respond-contact-updated
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-updated/
@@ -1610,7 +1610,7 @@ Resources:
   ContactUpdatedAssigneeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-contact-updated-assignee
+      FunctionName: !Sub ${AWS::StackName}-respond-contact-updated-assignee
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-updated-assignee/
@@ -1644,7 +1644,7 @@ Resources:
   ConversationOpenedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-conversation-opened
+      FunctionName: !Sub ${AWS::StackName}-respond-conversation-opened
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-conversation-opened/
@@ -1677,7 +1677,7 @@ Resources:
   ConversationClosedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-conversation-closed
+      FunctionName: !Sub ${AWS::StackName}-respond-conversation-closed
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-conversation-closed/
@@ -1715,7 +1715,7 @@ Resources:
   AnalyzeConversationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-analyze-conversation
+      FunctionName: !Sub ${AWS::StackName}-respond-analyze-conversation
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-analyze-conversation/
@@ -1752,7 +1752,7 @@ Resources:
   SaveOutgoingMessagesFromWorkflowFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-save-message-sent-workflow
+      FunctionName: !Sub ${AWS::StackName}-respond-save-message-sent-workflow
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-sent-workflow/
@@ -1804,7 +1804,7 @@ Resources:
   PendingMessageFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub ${Environment}-respond-pending-message
+      FunctionName: !Sub ${AWS::StackName}-respond-pending-message
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-pending-message/
@@ -1834,6 +1834,45 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${PendingMessageFunction}
+      RetentionInDays: 30
+
+## CloseAllConversations Lambda
+  CloseAllConversationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-respond-close-all-conversations
+      Runtime: python3.12
+      Handler: lambda_handler.lambda_handler
+      CodeUri: functions/respond-close-all-conversations/
+      Timeout: 30
+      MemorySize: 128
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: '*'
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+      Events: ## Evento programado para ejecutar a las 4 am
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Name: !Sub ${AWS::StackName}-respond-close-all-conversations
+            Schedule: cron(0 4 * * ? *)
+            Description: "Schedule to check pending messages on respond.io at 4 am"
+      Environment:
+        Variables:
+          secretRespondIO: !Ref SecretCommonPostgresTempFC
+
+  CloseAllConversationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${CloseAllConversationsFunction}
       RetentionInDays: 30
 
 ## Outputs
