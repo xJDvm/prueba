@@ -329,22 +329,89 @@ def lambda_handler(event, context):
         subject = "Respond.io | Analisis conversacion"
         body_text = "Respond.io | Analisis Conversacion"
         body_html = f"""
-        <html>
-        <head>
-            <title>Respond.io | Analisis de Conversacion</title>
-        </head>
-        <body>
-            <h1>Respond.io | Analisis de Conversacion</h1>
-            <p><strong>Conversation Code:</strong> {response['conversation_cod']}</p>
-            <p><strong>Contact ID:</strong> {response['contact_id']}</p>
-            <h2>Messages:</h2>
-            <ul>
-            {''.join(f"<li><strong>{msg['message']['timestamp']} - {msg['assigned_user_id']}:</strong> {msg['message']['content']}</li>" for msg in response['messages'])}
-            </ul>
-            <h2>Analysis:</h2>
-            <pre>{json.dumps(response['analysis'], indent=4, ensure_ascii=False)}</pre>
-        </body>
-        </html>
+            <html>
+            <head>
+                <title>Respond.io | Análisis de Conversación</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        color: #333333;
+                        backgrsound-color: #f4f4f4;
+                        margin: 0;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    }}
+                    h1 {{
+                        color: #3d85c6;
+                    }}
+                    h2 {{
+                        color: #333333;
+                        border-bottom: 2px solid #3d85c6;
+                        padding-bottom: 5px;
+                    }}
+                    p {{
+                        font-size: 14px;
+                    }}
+                    .message {{
+                        margin-bottom: 10px;
+                        padding: 10px;
+                        border-radius: 5px;
+                    }}
+                    .agent {{
+                        background-color: #e7f3fe;
+                        border-left: 5px solid #3d85c6;
+                    }}
+                    .client {{
+                        background-color: #f9f9f9;
+                        border-left: 5px solid #333333;
+                    }}
+                    .analysis {{
+                        background-color: #f1f1f1;
+                        padding: 10px;
+                        border-radius: 5px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Respond.io | Análisis de Conversación</h1>
+                    <p><strong>Código de Conversación:</strong> {response['conversation_cod']}</p>
+                    <p><strong>ID de Contacto:</strong> {response['contact_id']}</p>
+                    <h2>Mensajes:</h2>
+                    <ul>
+                        {''.join(f"<li class='message {'agent' if msg['message']['type'] == 'message.sent' else 'client'}'><strong>{msg['message']['timestamp']} - {msg['assigned_user_id']}:</strong> {msg['message']['content']}</li>" for msg in response['messages'])}
+                    </ul>
+                    <h2>Análisis:</h2>
+                    <div class="analysis">
+                        <p><strong>Cliente Satisfecho:</strong> {response['analysis']['cliente_satisfecho']}</p>
+                        <p><strong>Motivo de Insatisfacción:</strong> {response['analysis']['motivo_insatisfaccion']}</p>
+                        <p><strong>Resumen de la Conversación:</strong> {response['analysis']['resumen_conversacion']}</p>
+                        <p><strong>Nivel NPS:</strong> {response['analysis']['nivel_nps']}</p>
+                        <p><strong>Inquietud Resuelta:</strong> {response['analysis']['inquietud_resuelta']}</p>
+                        <p><strong>Nivel de Atención del Agente:</strong> {response['analysis']['nivel_atencion_agente']}</p>
+                        <p><strong>Sugerencia de Mejora:</strong> {response['analysis']['sugerencia_mejora']}</p>
+                        <p><strong>Puntos de Atención en el Workflow:</strong> {response['analysis']['puntos_atencion_workflow']}</p>
+                        <p><strong>Inconveniente por Barrera Idiomática:</strong> {response['analysis']['inconveniente_barrera_idiomatica']}</p>
+                        <p><strong>Detalle de la Barrera Idiomática:</strong> {response['analysis']['detalle_barrera_idiomatica']}</p>
+                        <p><strong>Tiempo de Atención Incorrecto:</strong> {response['analysis']['tiempo_atencion_incorrecto']}</p>
+                        <p><strong>Detalle del Tiempo de Atención:</strong> {response['analysis']['detalle_tiempo_atencion']}</p>
+                        <p><strong>Tiempo Promedio de Respuesta en la Primera Interacción:</strong> {response['analysis']['tiempo_promedio_respuesta_primera_interaccion']}</p>
+                        <p><strong>Tiempo Promedio de Respuesta:</strong> {response['analysis']['tiempo_promedio_respuesta']}</p>
+                        <p><strong>Tiempo Total de Resolución:</strong> {response['analysis']['tiempo_total_resolucion']}</p>
+                        <p><strong>Cantidad de Interacciones:</strong> {response['analysis']['cantidad_interacciones']}</p>
+                        <p><strong>Desviación del Tiempo de Respuesta:</strong> {response['analysis']['desviacion_tiempo_respuesta']}</p>
+                        <p><strong>Conversación Abandonada por el Cliente:</strong> {response['analysis']['conversacion_abandonada_cliente']}</p>
+                        <p><strong>Conversación Abandonada por el Asesor:</strong> {response['analysis']['conversacion_abandonada_asesor']}</p>
+                        <p><strong>Análisis de Sentimiento del Cliente:</strong> {response['analysis']['analisis_sentimiento_cliente']}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
         """
         
         send_email(sender, recipient, subject, body_text, body_html, cc)
