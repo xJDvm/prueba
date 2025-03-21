@@ -122,8 +122,8 @@ def handle_attachment_message(data):
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
-    filename = data["message"]["message"]["attachment"]["fileName"]
-    url = data["message"]["message"]["attachment"]["url"]
+    message_filename = data["message"]["message"]["attachment"]["fileName"]
+    message_url = data["message"]["message"]["attachment"]["url"]
     description = data["message"]["message"]["attachment"].get("description", "")
     message_type = data["event_type"]
     
@@ -153,10 +153,10 @@ def handle_attachment_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_filename, message_url, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, filename, url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_filename, message_url, description, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
     conn.commit()
     cursor.close()
     conn.close()
@@ -297,12 +297,12 @@ def handle_email_message(data):
 
     if attachments:
         message_datatype = [attachment["type"] for attachment in attachments]
-        filename = [attachment["fileName"] for attachment in attachments]
-        url = [attachment["url"] for attachment in attachments]
+        message_filename = [attachment["fileName"] for attachment in attachments]
+        message_url = [attachment["url"] for attachment in attachments]
     else: 
         message_datatype = data["message"]["message"]["type"]
-        filename = []
-        url = []
+        message_filename = []
+        message_url = []
     
     
     # Convertir el timestamp de milisegundos a segundos y luego a datetime
@@ -323,10 +323,10 @@ def handle_email_message(data):
     conn = connect()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, message_filename, message_url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, filename, url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, message_filename, message_url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours))
     conn.commit()
     cursor.close()
     conn.close()
