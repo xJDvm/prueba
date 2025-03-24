@@ -171,8 +171,8 @@ def lambda_handler(event, context):
                     print("No valid store emails found, using default recipient.")
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
-                subject = "Respond.io - QA | Notificación de mensaje fuera de horario"
-                body_text = "Respond.io - QA | Notificación de mensaje fuera de horario"
+                subject = "Respond.io | Notificación de mensaje fuera de horario"
+                body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body
                 
                 bcc=['projas@intelix.biz', 'jvaldes@intelix.biz']
@@ -202,8 +202,8 @@ def lambda_handler(event, context):
                     print(recipient)
                 cc = []
                 bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
-                subject = "Respond.io - QA | Notificación de mensaje fuera de horario"
-                body_text = "Respond.io - QA | Notificación de mensaje fuera de horario"
+                subject = "Respond.io | Notificación de mensaje fuera de horario"
+                body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)
 
                 if not all([sender, recipient, subject, body_text, body_html]):

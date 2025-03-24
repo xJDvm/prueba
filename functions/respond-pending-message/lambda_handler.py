@@ -51,8 +51,10 @@ def lambda_handler(event, context):
                 
                 responded_after_client = time_last_mess_out and time_last_mess_out > time_last_mess_in
                 
+                print(time_since_last_in)
+                
                 if time_since_last_in >= 3 and not responded_after_client and not mark_30min:
-                    subject = "Respond.io - QA | Notificación de mensaje pendiente (30 min)"
+                    subject = "Respond.io | Notificación de mensaje pendiente (30 min)"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:
@@ -63,7 +65,7 @@ def lambda_handler(event, context):
                         print("Error sending email: ", e.response['Error']['Message'])
 
                 elif time_since_last_in >= 6 and not responded_after_client and not mark_60min:
-                    subject = "Respond.io - QA | Notificación de mensaje pendiente (60 min)"
+                    subject = "Respond.io | Notificación de mensaje pendiente (60 min)"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:

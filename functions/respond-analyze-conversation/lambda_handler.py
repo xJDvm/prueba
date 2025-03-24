@@ -75,16 +75,15 @@ def get_conversation_messages(conversation_cod):
             }
         elif message['message_datatype'] == 'attachment':
             formatted_message['message']['content'] = {
-                'filename': message['filename'],
-                'url': message['url'],
+                'message_filename': message['message_filename'],
+                'message_url': message['messag`e_url'],
                 'message_text': message['message_text'],  # Incluir message_text
-                'description': message['message_text']  # Usamos message_text para la descripción
             }
         elif message['message_datatype'] == 'location':
             formatted_message['message']['content'] = {
-                'latitude': message['latitude'],
-                'longitude': message['longitude'],
-                'address': message['address']
+                'message_latitude': message['message_latitude'],
+                'message_longitude': message['message_longitude'],
+                'message_address': message['message_address']
             }
         elif message['message_datatype'] == 'template':
             formatted_message['message']['content'] = {
@@ -116,9 +115,9 @@ def format_conversation(messages):
         if message['message']['datatype'] == 'text':
             text = content.get('text', '')
         elif message['message']['datatype'] == 'attachment':
-            text = f"Archivo adjunto: {content.get('filename', '')} - {content.get('description', '')}"
+            text = f"Archivo adjunto: {content.get('message_filename', '')} - {content.get('message_text', '')}"
         elif message['message']['datatype'] == 'location':
-            text = f"Ubicación: Latitud {content.get('latitude', '')}, Longitud {content.get('longitude', '')}, Dirección: {content.get('address', '')}"
+            text = f"Ubicación: Latitud {content.get('message_latitude', '')}, Longitud {content.get('message_longitude', '')}, Dirección: {content.get('message_address', '')}"
         elif message['message']['datatype'] == 'template':
             text = f"Plantilla: {content.get('template_id', '')}"
         elif message['message']['datatype'] == 'quick_reply':
@@ -225,6 +224,8 @@ def lambda_handler(event, context):
     # Verificar si hubo un error al obtener los mensajes
     if 'statusCode' in response and response['statusCode'] != 200:
         return response
+    
+    
     
     # Formatear la conversación para Bedrock
     formatted_conversation = format_conversation(response['messages'])

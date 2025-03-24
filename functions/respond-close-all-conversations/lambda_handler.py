@@ -21,11 +21,17 @@ def lambda_handler(event, context):
 
         for conversation in conversations:
             contact_id = conversation['contact_id']
-            try:
-                close_conversations(contact_id)
+            response = close_conversations(contact_id)
+            if response['success']:
                 print(f"Conversación cerrada para contact_id: {contact_id}")
-            except Exception as e:
-                print(f"Error al cerrar la conversación para contact_id {contact_id}: {e}")
+            else:
+                print(f"Error al cerrar la conversación para contact_id {contact_id}: {response['error']}")
+            print(response)
+            # try:
+            #     close_conversations(contact_id)
+            #     print(f"Conversación cerrada para contact_id: {contact_id}")
+            # except Exception as e:
+            #     print(f"Error al cerrar la conversación para contact_id {contact_id}: {e}")
 
         conn.commit()
         cursor.close()

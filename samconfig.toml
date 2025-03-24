@@ -36,7 +36,7 @@ region = "us-west-2"
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
 image_repositories = []
 confirm_changeset = true
-parameter_overrides = "Environment=\"qa\" integrationMainPath=\"respond-io\""
+parameter_overrides = "Environment=\"qa\" SubnetIds=\"subnet-7e8e1006,subnet-508fe60d\" VpcId=\"vpc-af2b26d7\""
 
 [prodrespond.deploy.parameters]
 stack_name = "prodrespond-int-respondIo"

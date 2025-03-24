@@ -9,6 +9,8 @@ Mappings:
       Value: PRODUCCION
     qa:
       Value: QA
+    dev:
+      Value: DEV
 ###
 
 
@@ -19,35 +21,45 @@ Parameters:
     AllowedValues:
       - prod
       - qa
+      - dev
     Description: Ambiente de la aplicacion.
 
-  AccessKeyId:
-    Type: String
-    Description: Access Key ID for SMTP
-    Default: default-access-key-id
 
-  SecretAccessKey:
+  SubnetIds:
     Type: String
-    Description: Secret Access Key for SMTP
-    Default: default-secret-access-key
+    Default: Subnets para los recursos subnetid-1,subnetid-2
+    Description: SubnetIds.
 
-  Host:
+  VpcId:
     Type: String
-    Description: SMTP Host
-    Default: default-smtp-host
 
-  Port:
-    Type: String
-    Description: SMTP Port
-    Default: '587'
+# Globals:
+#   Function:
+#     VpcConfig:
+#       SubnetIds: !Split
+#         - ','
+#         - !Ref SubnetIds
+#       SecurityGroupIds:
+#         - !Ref SegurityGroupLambdaDefault
 
-  ##  Ruta base para consulta de articulos de la api compartida con Respond.io
-  integrationMainPath:
-    Type: String
-    Description: Ruta base para consulta de articulos de la api compartida
-    Default: respond-io
+
 
 Resources:
+
+  SegurityGroupLambdaDefault:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-lambdadefault"
+      GroupDescription: "default lambda security groups"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: -1          
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1          
+          CidrIp: 0.0.0.0/0
+
+
 
 ## Secret Manager Postgres
 
@@ -75,14 +87,6 @@ Resources:
       Type: String
       Value: !Ref SecretCommonPostgresTempFC
       Description: !Sub ${AWS::StackName} SecretCommonPostgresTempFC
-
-## Secret Manager Token API
-  secretmanagertokenapi:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub /${Environment}/respond/secretmanagertokenapi
-      Description: Secret Manager Token API
-      SecretString: '{"PRIVATE-TOKEN":"replacement", "ENDPOINT":"replacement"}'
 
   
 ## Parameter Store
@@ -127,15 +131,16 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnet group for Aurora RDS
-      SubnetIds:
-        - subnet-7e8e1006
-        - subnet-508fe60d
+      SubnetIds: !Split
+        - ','
+        - !Ref SubnetIds
+
 
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for Aurora RDS
-      VpcId: vpc-af2b26d7
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
@@ -236,7 +241,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${Environment}-respond-sqs-queue
-      VisibilityTimeout: 30
+      VisibilityTimeout: 60
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
         maxReceiveCount: 5
@@ -338,7 +343,6 @@ Resources:
       ResourceId: !Ref RespondAPIResource
       RestApiId: !Ref respondApiGateway
       AuthorizationType: NONE
-      # ApiKeyRequired: true
       HttpMethod: POST
       MethodResponses:
         - StatusCode: 200
@@ -396,61 +400,6 @@ Resources:
       RestApiId: !Ref respondApiGateway
 
 
-### Se crea el método post donde ocurre la "magia" de publicar al eventbridge. 
-  # RespondWorkflowApiPostMethod:
-  #   Type: AWS::ApiGateway::Method
-  #   Properties:
-  #     ResourceId: !Ref RespondWorkflowAPIResource
-  #     RestApiId: !Ref respondApiGateway
-  #     AuthorizationType: NONE
-  #     # ApiKeyRequired: true
-  #     HttpMethod: POST
-  #     MethodResponses:
-  #       - StatusCode: 200
-  #         ResponseModels:
-  #           application/json: Empty
-  #         ResponseParameters:
-  #           method.response.header.Access-Control-Allow-Headers: true
-  #           method.response.header.Access-Control-Allow-Methods: true
-  #           method.response.header.Access-Control-Allow-Origin: true
-  #     RequestParameters:
-  #       method.request.header.X-Amz-Target: false
-  #       method.request.header.Content-Type: false
-  #     Integration:
-  #       Type: AWS
-  #       IntegrationHttpMethod: POST
-  #       Credentials: !GetAtt ApiGatewayRoleWorkflow.Arn
-  #       Uri: !Sub arn:aws:apigateway:${AWS::Region}:events:action/PutEvents
-  #       PassthroughBehavior: NEVER
-  #       RequestTemplates:
-  #         application/json: !Sub
-  #           - |
-  #             #set($context.requestOverride.header.X-Amz-Target = "AWSEvents.PutEvents")
-  #             #set($context.requestOverride.header.Content-Type = "application/x-amz-json-1.1")
-  #             #set($inputRoot = $input.json('$'))
-  #             {
-  #                 "Entries": [
-  #                     {
-  #                         "Detail": "$util.escapeJavaScript($inputRoot).replaceAll("\\'","'")",
-  #                         "DetailType": "EventBridge from APIGW",
-  #                         "EventBusName": "${EventBusName}",
-  #                         "Source": "respondio.webhook"
-  #                     }
-  #                 ]
-  #             }
-  #           - EventBusName: !Ref RespondWorkflowEventBus
-  #       IntegrationResponses:
-  #         - StatusCode: 200
-  #           ResponseTemplates:
-  #             application/json: |-
-  #               #set($val = $input.path('$.Entries[0].EventId'))
-  #               {
-  #                 "response": "$val"
-  #               }
-  #           ResponseParameters:
-  #             method.response.header.Access-Control-Allow-Headers: '''Content-Type'''
-  #             method.response.header.Access-Control-Allow-Methods: '''POST'''
-  #             method.response.header.Access-Control-Allow-Origin: '''*'''
 
   RespondWorkflowApiPostMethod:
     Type: AWS::ApiGateway::Method
@@ -531,15 +480,6 @@ Resources:
             method.response.header.Access-Control-Allow-Origin: true
 
 
-
-
-
-
-
-
-
-
-
 ### Recursos SNS
 
   RespondSNSGlobal:
@@ -557,9 +497,6 @@ Resources:
             Service: apigateway.amazonaws.com
           Action: sns:Publish
           Resource: !Ref RespondSNSGlobal
-          # Condition:
-          #   ArnEquals:
-          #     aws:SourceArn: !GetAtt ContactCreatedtoSNSRule.Arn
       Topics:
         - !Ref RespondSNSGlobal
 
@@ -569,7 +506,7 @@ Resources:
   RespondContactSNSCreated:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: RespondContactSNSCreated
+      TopicName: !Sub ${AWS::StackName}-RespondContactSNSCreated
 
 ### Se crea una politica que permite que eventbridge mande mensajes al SNS.
   ContactCreatedEventToSNSPolicy:
@@ -608,7 +545,7 @@ Resources:
   ContactUpdatedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ContactUpdatedSNS
+      TopicName: !Sub ${AWS::StackName}-ContactUpdatedSNS
 
   ContactUpdatedSNSRule:
     Type: AWS::Events::Rule
@@ -644,7 +581,7 @@ Resources:
   ContactUpdatedAssigneeSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ContactUpdatedAssigneeSNS
+      TopicName: !Sub ${AWS::StackName}-ContactUpdatedAssigneeSNS
 
   ContactUpdatedAssigneeSNSRule:
     Type: AWS::Events::Rule
@@ -681,7 +618,7 @@ Resources:
   ConversationOpenedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ConversationOpenedSNS
+      TopicName: !Sub ${AWS::StackName}-ConversationOpenedSNS
 
   ConversationOpenedSNSRule:
     Type: AWS::Events::Rule
@@ -718,7 +655,7 @@ Resources:
   ConversationClosedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: ConversationClosedSNS
+      TopicName: !Sub ${AWS::StackName}-ConversationClosedSNS
 
   ConversationClosedSNSRule:
     Type: AWS::Events::Rule
@@ -756,7 +693,7 @@ Resources:
   MessageReceivedSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: MessageReceivedSNS
+      TopicName: !Sub ${AWS::StackName}-MessageReceivedSNS
 
   MessageReceivedSNSRule:
     Type: AWS::Events::Rule
@@ -793,7 +730,7 @@ Resources:
   MessageSentSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: MessageSentSNS
+      TopicName: !Sub ${AWS::StackName}-MessageSentSNS
 
   MessageSentSNSRule:
     Type: AWS::Events::Rule
@@ -831,7 +768,7 @@ Resources:
   AfterHourMessageSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: AfterHourMessageSNS
+      TopicName: !Sub ${AWS::StackName}-AfterHourMessageSNS
 
   AfterHourMessageSNSRule:
     Type: AWS::Events::Rule
@@ -867,7 +804,7 @@ Resources:
   AfterHourAssignSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: AfterHourAssignSNS
+      TopicName: !Sub ${AWS::StackName}-AfterHourAssignSNS
 
   AfterHourAssignSNSRule:
     Type: AWS::Events::Rule
@@ -910,7 +847,7 @@ Resources:
   SaveOutgoingMessagesFromWorkflowSNS:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: SaveOutgoingMessagesFromWorkflowSNS
+      TopicName: !Sub ${AWS::StackName}-SaveOutgoingMessagesFromWorkflowSNS
 
   SaveOutgoingMessagesFromWorkflowSNSRule:
     Type: AWS::Events::Rule
@@ -953,8 +890,11 @@ Resources:
   SaveOutgoingMessagesFromWorkflowSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: SaveOutgoingMessagesFromWorkflowSNSSQS
+      QueueName: !Sub ${AWS::StackName}-SaveOutgoingMessagesFromWorkflowSNSSQS
       VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   SaveOutgoingMessagesFromWorkflowSNSSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -987,7 +927,7 @@ Resources:
   RespondContactSNSCreatedSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: RespondContactSNSCreatedSQS
+      QueueName: !Sub ${AWS::StackName}-RespondContactSNSCreatedSQS
       VisibilityTimeout: 60
 
   RespondContactSNSCreatedSQSSubscription:
@@ -1019,7 +959,7 @@ Resources:
   ContactUpdatedSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: ContactUpdatedNSSQS
+      QueueName: !Sub ${AWS::StackName}-ContactUpdatedNSSQS
       VisibilityTimeout: 60
 
   ContactUpdatedSNSSQSSubscription:
@@ -1050,7 +990,7 @@ Resources:
   ContactUpdatedAssigneeSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: ContactUpdatedAssigneeNSSQS
+      QueueName: !Sub ${AWS::StackName}-ContactUpdatedAssigneeNSSQS
       VisibilityTimeout: 60
 
   ContactUpdatedAssigneeSNSSQSSubscription:
@@ -1082,7 +1022,7 @@ Resources:
   ConversationOpenedSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: ConversationOpenedSNSSQS
+      QueueName: !Sub ${AWS::StackName}-ConversationOpenedSNSSQS
       VisibilityTimeout: 60
 
   ConversationOpenedSNSSQSSubscription:
@@ -1114,7 +1054,7 @@ Resources:
   ConversationClosedSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: ConversationClosedNSSQS
+      QueueName: !Sub ${AWS::StackName}-ConversationClosedNSSQS
       VisibilityTimeout: 60
 
   ConversationClosedSNSSQSSubscription:
@@ -1147,7 +1087,7 @@ Resources:
   KeywordsDetectedSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: KeywordsDetectedSNSSQS
+      QueueName: !Sub ${AWS::StackName}-KeywordsDetectedSNSSQS
       VisibilityTimeout: 60
 
   KeywordsDetectedSNSSQSSubscription:
@@ -1179,7 +1119,7 @@ Resources:
   SaveMessageReceivedToDatabaseSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: SaveMessageReceivedToDatabaseSNSSQS
+      QueueName: !Sub ${AWS::StackName}-SaveMessageReceivedToDatabaseSNSSQS
       VisibilityTimeout: 60
 
   SaveMessageReceivedToDatabaseSNSSQSSubscription:
@@ -1212,7 +1152,7 @@ Resources:
   SaveMessageSentToDatabaseSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: SaveMessageSentToDatabaseSNSSQS
+      QueueName: !Sub ${AWS::StackName}-SaveMessageSentToDatabaseSNSSQS
       VisibilityTimeout: 60
 
   SaveMessageSentToDatabaseSNSSQSSubscription:
@@ -1245,7 +1185,7 @@ Resources:
   AfterHourMessageSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: AfterHourMessageSNSSQS
+      QueueName: !Sub ${AWS::StackName}-AfterHourMessageSNSSQS
       VisibilityTimeout: 60
 
   AfterHourMessageSNSSQSSubscription:
@@ -1277,7 +1217,7 @@ Resources:
   AfterHourAssignSNSSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: AfterHourAssignSNSSQS
+      QueueName: !Sub ${AWS::StackName}-AfterHourAssignSNSSQS
       VisibilityTimeout: 60
 
   AfterHourAssignSNSSQSSubscription:
@@ -1868,6 +1808,8 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
+          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+
 
   CloseAllConversationsLogGroup:
     Type: AWS::Logs::LogGroup
