@@ -134,9 +134,9 @@ def lambda_handler(event, context):
                 conn.close()
                 
                 client_name = contact_name
-                client_email = data["client_email"]
+                client_email = data["client_email"] if data["client_email"] else 'Sin correo'
                 client_phone = data["client_phone"]
-                client_identification = data["client_identification"]
+                client_identification = data["client_identification"] if data["client_identification"] else 'Sin cédula'
                 last_message_time = data["time"]
                 incoming_messages = messages_array
                 incoming_photos = photos_array
@@ -164,7 +164,7 @@ def lambda_handler(event, context):
                 
                 print(f"recipient: ", store_emails )
                 
-                sender = 'respond@arqintelix.biz'
+                sender = 'contactoempresas-no-reply@cr.epa.biz'
                 recipient = [email for email in store_emails if is_valid_email(email)]
                 if not recipient:
                     recipient = ['jvaldes@intelix.biz']
@@ -194,7 +194,7 @@ def lambda_handler(event, context):
                 body = build_html_asesor(contact_name, contact_id, agent_value, document_value)
             
                                 
-                sender = 'respond@arqintelix.biz'
+                sender = 'contactoempresas-no-reply@cr.epa.biz'
                 recipient = [email for email in [asesor_email] if is_valid_email(email)]
                 if not recipient:
                     recipient = ['jvaldes@intelix.biz']

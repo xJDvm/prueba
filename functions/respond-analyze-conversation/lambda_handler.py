@@ -324,7 +324,7 @@ def lambda_handler(event, context):
         
         
         # Enviar un correo electrónico con el análisis
-        sender = 'respond@arqintelix.biz'
+        sender = 'contactoempresas-no-reply@cr.epa.biz'
         recipient = ['jvaldes@intelix.biz']
         cc=['projas@intelix.biz']
         subject = "Respond.io | Analisis conversacion"
