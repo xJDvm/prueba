@@ -84,6 +84,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         AND message_classification = 'text' 
         AND message_timestamp > %s
         AND contact_id = %s
+        ORDER BY message_timestamp DESC
         """
                 
         print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
@@ -134,9 +135,9 @@ def lambda_handler(event, context):
                 conn.close()
                 
                 client_name = contact_name
-                client_email = data["client_email"] if data["client_email"] else 'Sin correo'
+                client_email = data["client_email"] if data.get("client_email") not in [None, 'null'] else 'Sin correo'
                 client_phone = data["client_phone"]
-                client_identification = data["client_identification"] if data["client_identification"] else 'Sin cédula'
+                client_identification = data["client_identification"] if data.get("client_identification") not in [None, 'null'] else 'Sin cédula'
                 last_message_time = data["time"]
                 incoming_messages = messages_array
                 incoming_photos = photos_array

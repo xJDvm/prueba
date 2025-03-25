@@ -15,8 +15,8 @@ def lambda_handler(event, context):
 
         conversation_query = """
             SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min,
-                   ct.client_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.asesor_email, ct.assignee_email, ct.lider_email, 
-                   ct.firstname || ' ' || ct.lastname as full_name
+                    ct.client_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.asesor_email, ct.assignee_email, ct.lider_email, 
+                    ct.firstname || ' ' || ct.lastname as full_name
             FROM respond_io.conversation c
             JOIN respond_io.contacts ct ON c.contact_id = ct.contact_id
             WHERE c.conversation_status = 'open'
