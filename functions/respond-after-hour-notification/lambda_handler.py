@@ -1,12 +1,14 @@
 import json
 import psycopg2.extras
-from dbconnection.dbconnection import connect
+import re
+from datetime import datetime, timedelta, timezone
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
-from datetime import datetime, timedelta, timezone
-import re
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
 
+db_credentials = get_database_credentials()
 
 def is_valid_email(email):
     regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
@@ -122,7 +124,7 @@ def lambda_handler(event, context):
                 
                 store = data["store"]
                 
-                conn = connect()
+                conn = connect(db_credentials)
                 current_time = data["time"]
                 
                 contact_info = get_contact_info(store, conn)

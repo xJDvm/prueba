@@ -46,6 +46,20 @@ Parameters:
 
 Resources:
 
+  UtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    DeletionPolicy: Delete
+    Properties:
+      LayerName: !Sub ${AWS::StackName}-UtilsLayer
+      ContentUri: ./functions/layers/utils
+      CompatibleRuntimes:
+        - python3.12
+      Description: Utils Layer to use in the lambdas
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+
+
   SegurityGroupLambdaDefault:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -97,6 +111,12 @@ Resources:
       Type: String
       Value: change-me
 
+  RespondConfigParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${Environment}/respond/parameters/common/cr/respond-config
+      Type: String
+      Value: change-me
 
 ## Aurora RDS
   AuroraDBCluster:
@@ -1264,6 +1284,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-after-hour-notification/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 10
       MemorySize: 128
       Architectures:
@@ -1308,6 +1330,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-after-hour-assign/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 10
       MemorySize: 128
       Architectures:
@@ -1342,6 +1366,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-keyword-detection/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Architectures:
@@ -1384,6 +1410,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-get-customer-data/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1414,6 +1442,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-received/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1451,6 +1481,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-sent/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1485,6 +1517,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-created/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1520,6 +1554,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-updated/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1554,6 +1590,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-contact-updated-assignee/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1588,6 +1626,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-conversation-opened/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1621,6 +1661,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-conversation-closed/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1659,6 +1701,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-analyze-conversation/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1696,6 +1740,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-save-message-sent-workflow/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1748,6 +1794,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-pending-message/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:
@@ -1784,6 +1832,8 @@ Resources:
       Runtime: python3.12
       Handler: lambda_handler.lambda_handler
       CodeUri: functions/respond-close-all-conversations/
+      Layers:
+        - !Ref UtilsLayer
       Timeout: 30
       MemorySize: 128
       Policies:

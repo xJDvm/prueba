@@ -1,16 +1,19 @@
 import json
 import psycopg2.extras
-from dbconnection.dbconnection import connect
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html
 from datetime import datetime
 from botocore.exceptions import ClientError
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 def lambda_handler(event, context):
 
     try:
         message_time = datetime.now()
-        conn = connect()
+        conn = connect(db_credentials)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         conversation_query = """

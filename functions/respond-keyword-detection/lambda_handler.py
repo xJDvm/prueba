@@ -1,10 +1,16 @@
 import json
 import psycopg2.extras
-from dbconnection.dbconnection import connect
 from respondfunctions.keyword_check import keyword_checker
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody import build_html
 from botocore.exceptions import ClientError
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+from int_respond_token import get_respond_token
+
+
+db_credentials = get_database_credentials()
+
 
 
 def get_contact_info(contact_id, conn):
@@ -48,7 +54,7 @@ def lambda_handler(event, context):
                     print(f"Palabra clave encontrada: '{keywords}' en el contacto con ID: {contact_id}")
                     
 
-                    conn = connect()
+                    conn = connect(db_credentials)
                     contact_info_json = get_contact_info(contact_id, conn)
                     contact_info = json.loads(contact_info_json)
                     conn.close()

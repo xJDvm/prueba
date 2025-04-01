@@ -2,6 +2,9 @@ import json
 import psycopg2.extras
 import datetime
 from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 
 def handle_create_contact(data):
@@ -14,7 +17,7 @@ def handle_create_contact(data):
     
     dl_modified_at = datetime.datetime.now().isoformat()
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Buscar el contacto en la tabla respond_io.contacts

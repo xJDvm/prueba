@@ -1,11 +1,16 @@
 import json
 import psycopg2.extras
 import datetime
-from dbconnection.dbconnection import connect
-from respondfunctions.send_respond_comment import create_comment
-from lambda_response import lambda_response
 from status_http import HttpStatus
 from datetime import datetime, timezone, timedelta
+from lambda_response import lambda_response
+from respondfunctions.send_respond_comment import create_comment
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+from int_respond_token import get_respond_token
+
+api_token = get_respond_token()
+db_credentials = get_database_credentials()
 
 
 def is_within_business_hours(timestamp):
@@ -20,7 +25,7 @@ def is_within_business_hours(timestamp):
     day_of_week = message_datetime.strftime('%A')  # Ejemplo: 'Monday'
     time_of_day = message_datetime.time()  # Ejemplo: 14:30:00
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     select_query = """
         SELECT *
@@ -69,7 +74,7 @@ def handle_text_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
@@ -111,7 +116,7 @@ def handle_attachment_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_filename, message_url, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
@@ -154,7 +159,7 @@ def handle_location_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_latitude, message_longitude, message_address, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
@@ -206,7 +211,7 @@ def handle_email_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, message_filename, message_url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)
@@ -233,7 +238,7 @@ def handle_unsupported_message(data):
             contact_details.append(f'{name} - {phone}')
         message = f'Se ha recibido un mensaje no soportado de tipo "Contacto" con los datos: {", ".join(contact_details)}'
     
-    create_comment(message, contact_id)
+    create_comment(message, contact_id, api_token)
 
 
 def handle_update_conversation(data):
@@ -244,7 +249,7 @@ def handle_update_conversation(data):
     
     dl_modified_at = datetime.now().isoformat()
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     update_query = """
         UPDATE respond_io.conversation

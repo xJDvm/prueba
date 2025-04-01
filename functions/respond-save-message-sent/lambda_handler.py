@@ -1,10 +1,13 @@
 import json
 import psycopg2.extras
 import datetime
-from dbconnection.dbconnection import connect
 from lambda_response import lambda_response
 from status_http import HttpStatus
 from datetime import datetime, timezone, timedelta
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 def is_within_business_hours(timestamp):
     # Convertir el timestamp de milisegundos a datetime en UTC
@@ -18,7 +21,7 @@ def is_within_business_hours(timestamp):
     day_of_week = message_datetime.strftime('%A')  # Ejemplo: 'Monday'
     time_of_day = message_datetime.time()  # Ejemplo: 14:30:00
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     select_query = """
         SELECT *
@@ -69,7 +72,7 @@ def handle_text_message(data):
     message_user = True
     message_workflow = False
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (
@@ -150,7 +153,7 @@ def handle_attachment_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_filename, message_url, message_text, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
@@ -198,7 +201,7 @@ def handle_template_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, template_id, channel_id, data_json, dl_created_at, dl_modified_at, dl_condition, mark_after_hours, message_user, message_workflow)
@@ -243,7 +246,7 @@ def handle_quick_reply_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_text, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
@@ -264,7 +267,7 @@ def handle_update_conversation(data):
     
     dl_modified_at = datetime.now().isoformat()
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     update_query = """
         UPDATE respond_io.conversation
@@ -320,7 +323,7 @@ def handle_email_message(data):
     dl_modified_at = datetime.now().isoformat()
     dl_condition = 'Active'
     
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_subject, message_text, message_filename, message_url, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours)

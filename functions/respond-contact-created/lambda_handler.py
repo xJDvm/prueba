@@ -2,7 +2,9 @@ import json
 import psycopg2.extras
 import datetime
 from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
 
+db_credentials = get_database_credentials()
 
 def handle_create_contact(data):
     contact_id = data["contact"]["id"]
@@ -23,7 +25,7 @@ def handle_create_contact(data):
     dl_modified_at = datetime.datetime.now().isoformat()
     dl_condition = 'Active'
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
         INSERT INTO respond_io.contacts (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition)

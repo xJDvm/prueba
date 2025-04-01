@@ -1,23 +1,14 @@
 import os
 import requests
 import json
-import boto3
 
-def create_comment(message, contact):
+def create_comment(message, contact, api_token):
     url_comment = f"https://api.respond.io/v2/contact/id:{contact}/comment"
-
-    ssm = boto3.client('ssm')
-    respond_token = os.environ['RESPOND_API_TOKEN']
-    print("Respond Token:", respond_token)
-    
-    response = ssm.get_parameter(Name=respond_token, WithDecryption=True)
-    parameter_value = response['Parameter']['Value']
-    
 
 
     headers = {
         "Accept": "application/json",
-        "Authorization": f"Bearer {parameter_value}",  # Usar la variable respond_token
+        "Authorization": f"Bearer {api_token}",  # Usar la variable respond_token
         "Content-Type": "application/json"
     }
 

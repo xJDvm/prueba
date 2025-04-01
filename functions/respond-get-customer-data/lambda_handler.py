@@ -1,8 +1,11 @@
 import json
 import psycopg2.extras
-from dbconnection.dbconnection import connect
 from lambda_response import lambda_response
 from status_http import HttpStatus
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 def lambda_handler(event, context):
 
@@ -24,7 +27,7 @@ def lambda_handler(event, context):
 
         try:
             # Conexión a la base de datos
-            conn = connect()
+            conn = connect(db_credentials)
         except Exception as e:
             print(f'error en la conexión a la base de datos: {e}')
             return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": "Database connection failed"})

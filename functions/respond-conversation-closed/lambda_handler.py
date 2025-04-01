@@ -4,6 +4,9 @@ import boto3
 import datetime
 import os
 from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 def invoke_analyze_conversation(conversation_cod):
     analyze_conversation_function_name = os.environ['ANALYZE_CONVERSATION_FUNCTION_NAME']
@@ -30,7 +33,7 @@ def handle_close_conversation(data):
     conversation_status = data["contact"]["status"]
     dl_modified_at = datetime.datetime.now().isoformat()
 
-    conn = connect()
+    conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Actualizar la conversación en la tabla respond_io.conversation

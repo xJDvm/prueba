@@ -1,91 +1,80 @@
-import json
 import psycopg2.extras
-from dbconnection.dbconnection import connect
+from datetime import datetime,timedelta
 from respondfunctions.send_respond_request import close_conversations
-from datetime import datetime
-from botocore.exceptions import ClientError
+from dbconnection.dbconnection import connect
+from dbconnection.secretManager import get_database_credentials
+from int_respond_token import get_respond_token
+
+db_credentials = get_database_credentials()
+api_token = get_respond_token()
 
 def close_conversation_manually(contact_id):
+    """Cierra una conversación manualmente en la base de datos si la API no la puede cerrar."""
     try:
-        con = connect()
-        cursor = con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        conn = connect(db_credentials)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        conversation_query = """
+        # Obtener conversación abierta
+        cursor.execute("""
             SELECT conversation_cod, conversation_opened_at
             FROM respond_io.conversation
-            WHERE contact_id = %s
-            AND conversation_status = 'open'
-        """
+            WHERE contact_id = %s AND conversation_status = 'open'
+        """, (contact_id,))
         
-        cursor.execute(conversation_query, (contact_id,))
         conversation = cursor.fetchone()
-        
+        if not conversation:
+            print(f"No se encontró conversación abierta para contact_id: {contact_id}")
+            return
+
         conversation_cod = conversation['conversation_cod']
         conversation_opened_at = conversation['conversation_opened_at']
-        closed_time = datetime.datetime.now().isoformat()
-        close_by_id = 'api'
-        conversation_status = 'closed'
-        dl_modified_at = datetime.datetime.now().isoformat()
-        
-                # Actualizar la conversación en la tabla respond_io.conversation
-        update_query = """
+        closed_time = datetime.now().isoformat()
+        dl_modified_at = datetime.now().isoformat()
+
+        # Actualizar la conversación en la base de datos
+        cursor.execute("""
             UPDATE respond_io.conversation
-            SET closed_time = %s,
-                close_by_id = %s,
-                conversation_status = %s,
-                dl_modified_at = %s
+            SET closed_time = %s, close_by_id = 'api', conversation_status = 'closed', dl_modified_at = %s
             WHERE conversation_cod = %s
-        """
-        
-        insert_conversation_cod_query = """
+        """, (closed_time, dl_modified_at, conversation_cod))
+
+        cursor.execute("""
             UPDATE respond_io.messages
-            SET conversation_cod = %s,
-                dl_modified_at = %s
-            WHERE contact_id = %s
-            AND message_timestamp between %s and %s
-            """
-        
-        cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))
-        
-        cursor.execute(insert_conversation_cod_query, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
-        
+            SET conversation_cod = %s, dl_modified_at = %s
+            WHERE contact_id = %s AND message_timestamp BETWEEN %s AND %s
+        """, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
+
         conn.commit()
         cursor.close()
         conn.close()
-    
+        print(f"Conversación cerrada manualmente para contact_id: {contact_id}")
+
     except Exception as e:
-        print(f'ERROR: {e}')
-    
+        print(f'Error al cerrar manualmente la conversación: {e}')
 
 def lambda_handler(event, context):
-
+    """Handler principal de la Lambda."""
     try:
-        conn = connect()
+        conn = connect(db_credentials)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        conversation_query = """
-            SELECT contact_id
-            FROM respond_io.conversation
-            WHERE conversation_status = 'open'
-        """
-        cursor.execute(conversation_query)
+        # Obtener todas las conversaciones abiertas
+        cursor.execute("SELECT contact_id FROM respond_io.conversation WHERE conversation_status = 'open'")
         conversations = cursor.fetchall()
 
         for conversation in conversations:
             contact_id = conversation['contact_id']
-            response = close_conversations(contact_id)
-            if response['success']:
-                print(f"Conversación cerrada para contact_id: {contact_id}")
-            elif response['status'] == 404:
-                print(f"Conversación no encontrada para contact_id: {contact_id}")
+            response = close_conversations(contact_id, api_token)
+
+            if response['status'] == 404:
+                print(f"Intentando cerrar manualmente la conversación para contact_id: {contact_id}")
                 close_conversation_manually(contact_id)
+            elif response['status'] == 200:
+                print(f"Conversación cerrada con éxito para contact_id: {contact_id}")
             else:
-                print(f"Error al cerrar la conversación para contact_id: {contact_id}")
-            print(response)
-            
+                print(f"Error al cerrar la conversación para contact_id: {contact_id}: {response}")
+
         conn.commit()
         cursor.close()
-
     except Exception as e:
-        print(f'ERROR: {e}')
-        print("Error al ejecutar la lambda")
+        print(f"ERROR en lambda_handler: {e}")

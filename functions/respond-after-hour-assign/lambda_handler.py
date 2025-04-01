@@ -1,8 +1,13 @@
 import json
 import psycopg2.extras
+from datetime import datetime, timezone
 from respondfunctions.assign_conversation import assign_conversation
 from dbconnection.dbconnection import connect
-from datetime import datetime, timezone
+from dbconnection.secretManager import get_database_credentials
+from int_respond_token import get_respond_token
+
+db_credentials = get_database_credentials()
+api_token = get_respond_token()
 
 def lambda_handler(event, context):
 
@@ -32,7 +37,7 @@ def lambda_handler(event, context):
             assignee = store_assignee_map.get(store, None)
             print(f"Contact ID: {contact_id}, Assignee: {assignee}")
 
-            conn = connect()
+            conn = connect(db_credentials)
             cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
             
             
@@ -62,7 +67,7 @@ def lambda_handler(event, context):
                         if time_last_mess_out_wf is None or time_last_mess_out <= time_last_mess_out_wf:
                             print(f"Assigning conversation to {assignee}")
                             
-                            result = assign_conversation(contact_id, assignee)
+                            result = assign_conversation(contact_id, assignee, api_token)
                             
                             print(f"Result: {result}")
 

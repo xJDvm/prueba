@@ -3,8 +3,11 @@ import psycopg2.extras
 import boto3
 import logging
 from datetime import datetime, timezone
-from dbconnection.dbconnection import connect  # Asegúrate de que este módulo esté correctamente implementado
 from respondfunctions.send_emails import send_email  # Asegúrate de que este módulo esté correctamente implementado
+from dbconnection.dbconnection import connect  # Asegúrate de que este módulo esté correctamente implementado
+from dbconnection.secretManager import get_database_credentials
+
+db_credentials = get_database_credentials()
 
 # Configuración básica del logger
 logger = logging.getLogger()
@@ -16,7 +19,7 @@ bedrock_client = boto3.client('bedrock-runtime')
 def get_conversation_messages(conversation_cod):
     try:
         # Conectar a la base de datos
-        conn = connect()
+        conn = connect(db_credentials)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     except Exception as e:
         logger.error(f"Error al conectar a la base de datos: {str(e)}")
@@ -266,7 +269,7 @@ def lambda_handler(event, context):
         analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
         
         # Conectar a la base de datos
-        conn = connect()
+        conn = connect(db_credentials)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         update_query = """
