@@ -6,10 +6,10 @@ from respondfunctions.emailbody import build_html
 from botocore.exceptions import ClientError
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
-from int_respond_token import get_respond_token
 
 
 db_credentials = get_database_credentials()
+
 
 
 

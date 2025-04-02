@@ -4,6 +4,9 @@ import json
 import requests
 import boto3
 from .send_respond_comment import create_comment
+from int_respond_token import get_respond_token
+
+api_token = get_respond_token()
 
 def normalize_text(text):
     return text.lower().encode('utf-8').decode('utf-8', 'ignore')
@@ -49,7 +52,7 @@ def keyword_checker(message, contact):
         }
 
         try:
-            comment_response = create_comment(comment, contact)
+            comment_response = create_comment(comment, contact, api_token)
             response_contact = requests.get(url_contact, headers=headers)
 
             return {
