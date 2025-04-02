@@ -1,8 +1,8 @@
 import json
 import psycopg2.extras
 import datetime
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 

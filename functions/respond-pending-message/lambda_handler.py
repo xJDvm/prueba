@@ -4,8 +4,8 @@ from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html
 from datetime import datetime
 from botocore.exceptions import ClientError
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 

@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 

@@ -2,8 +2,8 @@ import json
 import psycopg2.extras
 from datetime import datetime, timezone
 from respondfunctions.assign_conversation import assign_conversation
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 from int_respond_token import get_respond_token
 
 db_credentials = get_database_credentials()

@@ -1,8 +1,8 @@
 import psycopg2.extras
 from datetime import datetime,timedelta
 from respondfunctions.send_respond_request import close_conversations
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 from int_respond_token import get_respond_token
 
 db_credentials = get_database_credentials()

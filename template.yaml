@@ -46,6 +46,34 @@ Parameters:
 
 Resources:
 
+  GlobalSQSPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref RespondSQSMessageReceived
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: 
+              - !GetAtt RespondSQSMessageReceived.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref RespondSNSEntryPoint
+
+  GetSecretPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+
   UtilsLayer:
     Type: AWS::Serverless::LayerVersion
     DeletionPolicy: Delete
@@ -315,9 +343,16 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - sns:Publish
+                Resource: !Ref RespondSNSEntryPoint
+              - Effect: Allow
+                Action:
                   - events:PutEvents
                   - events:PutEvent
                 Resource: !GetAtt RespondEventBus.Arn
+
+
+                
 
  ### Se crea un rol que permite a ApiGateway publicar mensajes en el Bus (el api se define en el próximo recurso). 
   ApiGatewayRoleWorkflow:
@@ -343,6 +378,62 @@ Resources:
                   - events:PutEvent
                 Resource: !GetAtt RespondWorkflowEventBus.Arn
 
+
+
+  FlowTypeAPIResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt respondApiGateway.RootResourceId
+      PathPart: "{flowtype}"
+      RestApiId: !Ref respondApiGateway
+
+  RespondAPISNSResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt FlowTypeAPIResource.ResourceId
+      PathPart: "notification"
+      RestApiId: !Ref respondApiGateway
+
+
+  RespondAPIPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ResourceId: !Ref RespondAPISNSResource
+      RestApiId: !Ref respondApiGateway
+      AuthorizationType: "NONE"
+      HttpMethod: "POST"
+      Integration:
+        Type: "AWS"
+        IntegrationHttpMethod: "POST"
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:sns:path//
+        Credentials: !GetAtt ApiGatewayRole.Arn
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseTemplates:
+            "application/json": !Sub "{\"body\": \"Successfully published message to SNS topic\"}"
+        RequestParameters:
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        RequestTemplates: 
+          application/json : !Sub  
+            - |
+              #set($body_respondio=$util.urlEncode($input.body))
+              #set($event_type=$input.path('$.event_type'))
+              ${SNSParameters}
+            - SNSParameters: !Join
+              - '&'
+              - - Action=Publish
+                - !Sub TopicArn=$util.urlEncode('${RespondSNSEntryPoint}')
+                - MessageAttributes.entry.1.Name=flowtype
+                - MessageAttributes.entry.1.Value.DataType=String
+                - MessageAttributes.entry.1.Value.StringValue=$util.escapeJavaScript($method.request.path.flowtype)
+                - MessageAttributes.entry.2.Name=event_type
+                - MessageAttributes.entry.2.Value.DataType=String
+                - MessageAttributes.entry.2.Value.StringValue=$event_type
+                - Message=$body_respondio
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        ContentHandling: CONVERT_TO_TEXT     
+      MethodResponses:
+      - StatusCode: 200
 
 
 
@@ -501,6 +592,32 @@ Resources:
 
 
 ### Recursos SNS
+
+  RespondSNSEntryPoint:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWS::StackName}-RespondSNSEntryPoint
+
+  RespondSQSMessageReceived:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-RespondSQSMessageReceived
+      VisibilityTimeout: 15
+
+  RespondSQSMessageReceivedSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref RespondSNSEntryPoint
+      Protocol: sqs
+      Endpoint: !GetAtt RespondSQSMessageReceived.Arn
+      FilterPolicyScope: MessageAttributes
+      FilterPolicy: 
+        event_type: 
+          - "message.received"
+        flowtype:
+          - "useragent"
+      
+  
 
   RespondSNSGlobal:
     Type: AWS::SNS::Topic
@@ -1746,10 +1863,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1838,13 +1952,11 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
+        - !Ref GetSecretPolicy
         - Statement:
           - Effect: Allow
             Action: ses:SendEmail
             Resource: '*'
-          - Effect: Allow
-            Action: secretsmanager:GetSecretValue
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
           - Effect: Allow
             Action: ssm:GetParameter
             Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token

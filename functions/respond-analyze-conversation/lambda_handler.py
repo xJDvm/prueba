@@ -4,8 +4,8 @@ import boto3
 import logging
 from datetime import datetime, timezone
 from respondfunctions.send_emails import send_email  # Asegúrate de que este módulo esté correctamente implementado
-from dbconnection.dbconnection import connect  # Asegúrate de que este módulo esté correctamente implementado
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect  # Asegúrate de que este módulo esté correctamente implementado
+from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 

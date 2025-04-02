@@ -4,8 +4,8 @@ from respondfunctions.keyword_check import keyword_checker
 from respondfunctions.send_emails import send_email
 from respondfunctions.emailbody import build_html
 from botocore.exceptions import ClientError
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 from int_respond_token import get_respond_token
 
 

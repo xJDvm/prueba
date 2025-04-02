@@ -4,8 +4,8 @@ import datetime
 from lambda_response import lambda_response
 from status_http import HttpStatus
 from datetime import datetime, timezone, timedelta
-from dbconnection.dbconnection import connect
-from dbconnection.secretManager import get_database_credentials
+from respond_dbconnection.dbconnection import connect
+from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 
