@@ -354,7 +354,7 @@ def lambda_handler(event, context):
         try:
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
-            data = message["detail"]
+            data = message
 
             message_type = data.get("message").get("message").get("type")
             

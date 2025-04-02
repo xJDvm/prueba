@@ -35,7 +35,7 @@ def lambda_handler(event, context):
         try:
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
-            data = message["detail"]
+            data = message
             
             contact_name = data["contact"]["firstName"] + " " + data["contact"]["lastName"]
             contact_id = data["contact"]["id"]

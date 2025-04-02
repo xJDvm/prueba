@@ -20,7 +20,7 @@ def lambda_handler(event, context):
             
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
-            data = message["detail"]
+            data = message
 
             contact_id = str(data["contact_id"])
             store = data["store"]

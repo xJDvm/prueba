@@ -74,7 +74,7 @@ def lambda_handler(event, context):
         try:
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
-            data = message["detail"]
+            data = message
                         
             handle_create_contact(data)
 

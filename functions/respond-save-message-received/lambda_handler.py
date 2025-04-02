@@ -268,6 +268,8 @@ def handle_update_conversation(data):
 def lambda_handler(event, context):
     batch_item_failures = []
     sqs_batch_response = {}
+    
+    print(event)
 
     message_handlers = {
         'text': handle_text_message,
@@ -281,7 +283,7 @@ def lambda_handler(event, context):
         try:
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
-            data = message["detail"]
+            data = message
 
             message_type = data.get("message").get("message").get("type")
             
