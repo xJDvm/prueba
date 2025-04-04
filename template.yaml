@@ -51,6 +51,7 @@ Resources:
     Properties:
       Queues:
         - !Ref RespondMessageReceivedSQS
+        - !Ref RespondKeywordDetectionSQS 
         - !Ref RespondAfterHourNotificationSQS
         - !Ref RespondAfterHourAssignSQS
         - !Ref RespondMessageSentUserSQS
@@ -69,6 +70,7 @@ Resources:
             Action: sqs:SendMessage
             Resource: 
               - !GetAtt RespondMessageReceivedSQS.Arn
+              - !GetAtt RespondKeywordDetectionSQS.Arn
               - !GetAtt RespondAfterHourNotificationSQS.Arn
               - !GetAtt RespondAfterHourAssignSQS.Arn
               - !GetAtt RespondMessageSentUserSQS.Arn
@@ -417,12 +419,21 @@ Resources:
 
 ## SQS NUEVOS 
 
+  respondSqsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-respondSqsDLQ
+      # MessageRetentionPeriod: 1209600
+
 ## SQS MESAJE RECIBIDO
   RespondMessageReceivedSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondMessageReceivedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondMessageReceivedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -437,12 +448,39 @@ Resources:
         flowtype:
           - "platform"
 
+
+## SQS Palabra Clave
+  RespondKeywordDetectionSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-RespondKeywordDetectionSQS
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
+
+  RespondKeywordDetectionSQSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref RespondSNSEntryPoint
+      Protocol: sqs
+      Endpoint: !GetAtt RespondKeywordDetectionSQS.Arn
+      FilterPolicyScope: MessageAttributes
+      FilterPolicy: 
+        event_type: 
+          - "message.received"
+        flowtype:
+          - "platform"
+
 ## SQS AFTERHOUR
   RespondAfterHourNotificationSQS:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondAfterHourNotificationSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondAfterHourNotificationSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -463,7 +501,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondAfterHourAssignSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondAfterHourAssignSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -483,7 +524,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondMessageSentUserSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondMessageSentUserSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -503,7 +547,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondContactCreatedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondContactCreatedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -523,7 +570,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondContactUpdatedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondContactUpdatedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -543,7 +593,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondContactAssigneeUpdatedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondContactAssigneeUpdatedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -563,7 +616,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondCoversationOpenedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondCoversationOpenedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -584,7 +640,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondCoversationClosedSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondCoversationClosedSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -605,7 +664,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondMessageSentWorkflowSQS
-      VisibilityTimeout: 45
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
   RespondMessageSentWorkflowSQSSubscription:
     Type: AWS::SNS::Subscription
@@ -766,7 +828,7 @@ Resources:
         SQSQueueEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt RespondMessageReceivedSQS.Arn
+            Queue: !GetAtt RespondKeywordDetectionSQS.Arn
             FunctionResponseTypes:
               - ReportBatchItemFailures
       Environment:
