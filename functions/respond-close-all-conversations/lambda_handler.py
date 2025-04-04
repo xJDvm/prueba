@@ -1,12 +1,20 @@
 import psycopg2.extras
+import json
 from datetime import datetime,timedelta
 from respondfunctions.send_respond_request import close_conversations
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 from int_respond_token import get_respond_token
+from int_respond_config import get_respond_config
 
 db_credentials = get_database_credentials()
 api_token = get_respond_token()
+respond_config = json.loads(get_respond_config())
+
+print("Config: ", respond_config)
+print (respond_config["storeAssigneeMap"]["Curridabat"])
+print (respond_config["senderEmail"])
+
 
 def close_conversation_manually(contact_id):
     """Cierra una conversación manualmente en la base de datos si la API no la puede cerrar."""

@@ -94,6 +94,37 @@ Resources:
               Action: secretsmanager:GetSecretValue
               Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
 
+  GetApiParameterPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+
+  GetConfigParameterPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-config
+
+  SendEmailPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ses:SendEmail
+            Resource: '*'
+
+
   UtilsLayer:
     Type: AWS::Serverless::LayerVersion
     DeletionPolicy: Delete
@@ -732,17 +763,10 @@ Resources:
         - x86_64
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-          - Effect: Allow
-            Action: ses:SendEmail
-            Resource: '*'
-          - Effect: Allow
-            Action: secretsmanager:GetSecretValue
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-          - Effect: Allow
-            Action: ssm:GetParameter
-            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
-      
+        - !Ref GetSecretPolicy
+        - !Ref GetApiParameterPolicy
+        - !Ref GetConfigParameterPolicy
+        - !Ref SendEmailPolicy  
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -778,13 +802,8 @@ Resources:
         - x86_64
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-          - Effect: Allow
-            Action: secretsmanager:GetSecretValue
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-          - Effect: Allow
-            Action: ssm:GetParameter
-            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+        - !Ref GetSecretPolicy
+        - !Ref GetApiParameterPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -814,16 +833,10 @@ Resources:
         - x86_64
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-          - Effect: Allow
-            Action: ses:SendEmail
-            Resource: '*'
-          - Effect: Allow
-            Action: secretsmanager:GetSecretValue
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-          - Effect: Allow
-            Action: ssm:GetParameter
-            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+        - !Ref GetSecretPolicy
+        - !Ref GetApiParameterPolicy
+        - !Ref GetConfigParameterPolicy
+        - !Ref SendEmailPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -856,13 +869,8 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: '*'
+        - !Ref GetSecretPolicy
+        - !Ref SendEmailPolicy
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
@@ -888,13 +896,9 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
-            - Effect: Allow
-              Action: ssm:GetParameter
-              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+        - !Ref GetSecretPolicy
+        - !Ref GetApiParameterPolicy
+        - !Ref GetConfigParameterPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -927,10 +931,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy        
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -963,10 +964,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1000,10 +998,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1036,10 +1031,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1072,10 +1064,7 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1107,10 +1096,8 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
+        - !Ref GetSecretPolicy
         - Statement:
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
             - Effect: Allow
               Action: lambda:InvokeFunction
               Resource: !GetAtt AnalyzeConversationFunction.Arn
@@ -1147,13 +1134,9 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
+        - !Ref GetSecretPolicy
+        - !Ref SendEmailPolicy
         - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: '*'
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
             - Sid: AllowBedrockInvocation
               Effect: Allow
               Action:
@@ -1237,13 +1220,8 @@ Resources:
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: ses:SendEmail
-              Resource: '*'
-            - Effect: Allow
-              Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+        - !Ref GetSecretPolicy
+        - !Ref SendEmailPolicy
       Events: ## Evento programado para ejecutar cada minuto
         ScheduleEvent:
           Type: Schedule
@@ -1276,13 +1254,8 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - !Ref GetSecretPolicy
-        - Statement:
-          - Effect: Allow
-            Action: ses:SendEmail
-            Resource: '*'
-          - Effect: Allow
-            Action: ssm:GetParameter
-            Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/respond/parameters/common/cr/respond-api-token
+        - !Ref GetApiParameterPolicy
+        - !Ref GetConfigParameterPolicy
       Events: ## Evento programado para ejecutar a las 4 am
         ScheduleEvent:
           Type: Schedule
@@ -1293,7 +1266,8 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
-          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
 
 
   CloseAllConversationsLogGroup:
@@ -1305,4 +1279,4 @@ Resources:
 ## Outputs
 Outputs:
   ParameterPath:
-    Value: !Ref RespondApiTokenParameter
+    Value: !Ref RespondConfigParameter
