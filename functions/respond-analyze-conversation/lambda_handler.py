@@ -3,7 +3,7 @@ import psycopg2.extras
 import boto3
 import logging
 from datetime import datetime, timezone
-from respondfunctions.send_emails import send_email  # Asegúrate de que este módulo esté correctamente implementado
+from int_respond_sendemail import send_email  # Asegúrate de que este módulo esté correctamente implementado
 from respond_dbconnection.dbconnection import connect  # Asegúrate de que este módulo esté correctamente implementado
 from respond_dbconnection.secretManager import get_database_credentials
 
@@ -327,7 +327,6 @@ def lambda_handler(event, context):
         
         
         # Enviar un correo electrónico con el análisis
-        sender = 'contactoempresas-no-reply@cr.epa.biz'
         recipient = ['jvaldes@intelix.biz']
         cc=['projas@intelix.biz']
         subject = "Respond.io | Analisis conversacion"
@@ -418,7 +417,7 @@ def lambda_handler(event, context):
             </html>
         """
         
-        send_email(sender, recipient, subject, body_text, body_html, cc)
+        send_email(recipient, subject, body_text, body_html, cc)
         
         return {
             'statusCode': 200,

@@ -1,6 +1,6 @@
 import json
 import psycopg2.extras
-from respondfunctions.send_emails import send_email
+from int_respond_sendemail import send_email
 from respondfunctions.emailbody_asesor import build_html
 from datetime import datetime
 from botocore.exceptions import ClientError
@@ -61,7 +61,7 @@ def lambda_handler(event, context):
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:
-                        send_email('contactoempresas-no-reply@cr.epa.biz', [assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
+                        send_email([assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
@@ -72,7 +72,7 @@ def lambda_handler(event, context):
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
                     try:
-                        send_email('contactoempresas-no-reply@cr.epa.biz', [assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
+                        send_email([assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_60min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         print(f"Correo de 60 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:

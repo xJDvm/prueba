@@ -11,9 +11,6 @@ db_credentials = get_database_credentials()
 api_token = get_respond_token()
 respond_config = json.loads(get_respond_config())
 
-print("Config: ", respond_config)
-print (respond_config["storeAssigneeMap"]["Curridabat"])
-print (respond_config["senderEmail"])
 
 
 def close_conversation_manually(contact_id):

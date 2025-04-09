@@ -777,7 +777,8 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC  
-          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+          RESPOND_API_TOKEN: !Ref RespondApiTokenParameter
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
 
 
 ##AfterHourAssign Lambda
@@ -848,6 +849,7 @@ Resources:
         Variables:
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
           secretRespondIO: !Ref SecretCommonPostgresTempFC
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
 
   KeywordsDetectedLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1136,6 +1138,7 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - !Ref GetSecretPolicy
         - !Ref SendEmailPolicy
+        - !Ref GetConfigParameterPolicy
         - Statement:
             - Sid: AllowBedrockInvocation
               Effect: Allow
@@ -1145,6 +1148,7 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
 
   AnalyzeConversationLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1222,6 +1226,7 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - !Ref GetSecretPolicy
         - !Ref SendEmailPolicy
+        - !Ref GetConfigParameterPolicy
       Events: ## Evento programado para ejecutar cada minuto
         ScheduleEvent:
           Type: Schedule
@@ -1232,6 +1237,8 @@ Resources:
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
+
 
   PendingMessageLogGroup:
     Type: AWS::Logs::LogGroup

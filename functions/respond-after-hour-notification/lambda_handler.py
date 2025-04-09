@@ -2,7 +2,7 @@ import json
 import psycopg2.extras
 import re
 from datetime import datetime, timedelta, timezone
-from respondfunctions.send_emails import send_email
+from int_respond_sendemail import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
 from respond_dbconnection.dbconnection import connect
@@ -167,7 +167,6 @@ def lambda_handler(event, context):
                 
                 print(f"recipient: ", store_emails )
                 
-                sender = 'contactoempresas-no-reply@cr.epa.biz'
                 recipient = [email for email in store_emails if is_valid_email(email)]
                 if not recipient:
                     recipient = ['jvaldes@intelix.biz']
@@ -180,10 +179,10 @@ def lambda_handler(event, context):
                 
                 bcc=['projas@intelix.biz', 'jvaldes@intelix.biz']
 
-                if not all([sender, recipient, subject, body_text, body_html]):
+                if not all([recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc, bcc)  
+                send_email(recipient, subject, body_text, body_html, cc, bcc)  
                 
             
             else:
@@ -197,7 +196,6 @@ def lambda_handler(event, context):
                 body = build_html_asesor(contact_name, contact_id, agent_value, document_value)
             
                                 
-                sender = 'contactoempresas-no-reply@cr.epa.biz'
                 recipient = [email for email in [asesor_email] if is_valid_email(email)]
                 if not recipient:
                     recipient = ['jvaldes@intelix.biz']
@@ -209,10 +207,10 @@ def lambda_handler(event, context):
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)
 
-                if not all([sender, recipient, subject, body_text, body_html]):
+                if not all([recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
-                send_email(sender, recipient, subject, body_text, body_html, cc, bcc)
+                send_email(recipient, subject, body_text, body_html, cc, bcc)
                 
 
         except Exception as e:
