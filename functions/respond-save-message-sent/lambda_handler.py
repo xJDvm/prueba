@@ -277,6 +277,13 @@ def handle_update_conversation(data):
         AND conversation_status = 'open'
     """
     cursor.execute(update_query, (dl_modified_at, message_timestamp, contact_id))
+    
+        
+    if cursor.rowcount == 0:
+        print(f"No se encontró una conversación abierta para el contacto con ID {contact_id}")
+    else:
+        print("Datos actualizados correctamente en la tabla respond_io.conversation")
+    
     conn.commit()
     cursor.close()
     conn.close()

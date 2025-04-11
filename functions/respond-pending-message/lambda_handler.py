@@ -1,11 +1,18 @@
 import json
 import psycopg2.extras
-from int_respond_sendemail import send_email
 from respondfunctions.emailbody_asesor import build_html
 from datetime import datetime
 from botocore.exceptions import ClientError
+from int_respond_config import get_respond_config
+from int_respond_sendemail import send_email
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
+
+respond_config = json.loads(get_respond_config())
+first_time_notification = respond_config["firstNotificationTime"]
+second_time_notification = respond_config["secondNotificationTime"]
+backup_email = respond_config["backupEmail"]
+support_emails = respond_config["supportEmails"]
 
 db_credentials = get_database_credentials()
 
@@ -45,10 +52,10 @@ def lambda_handler(event, context):
                 assignee_name = conversation['assignee_name'] if conversation['assignee_name'] else 'Equipo de Respond.io'
                 full_name = conversation['full_name']
                 
-                assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else 'jvaldes@intelix.biz'
+                assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else backup_email
                 lider_email = conversation['lider_email'] if conversation['lider_email'] else None
                 
-                bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                bcc = support_emails
                 
                 time_since_last_in = (message_time - time_last_mess_in).total_seconds() / 60
                 
@@ -56,7 +63,7 @@ def lambda_handler(event, context):
                 
                 print(time_since_last_in)
                 
-                if time_since_last_in >= 3 and not responded_after_client and not mark_30min:
+                if time_since_last_in >= first_time_notification and not responded_after_client and not mark_30min:
                     subject = "Respond.io | Notificación de mensaje pendiente (30 min)"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     
@@ -67,7 +74,7 @@ def lambda_handler(event, context):
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
 
-                elif time_since_last_in >= 6 and not responded_after_client and not mark_60min:
+                elif time_since_last_in >= second_time_notification and not responded_after_client and not mark_60min:
                     subject = "Respond.io | Notificación de mensaje pendiente (60 min)"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
                     

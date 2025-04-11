@@ -1,3 +1,9 @@
+import json
+from int_respond_config import get_respond_config
+
+respond_config = json.loads(get_respond_config())
+respond_space = respond_config["respondSpace"]
+
 def build_html(asesor_name, client_id, client_name, client_identification, message_date):
     bodyhtml = f"""
           <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -300,7 +306,7 @@ def build_html(asesor_name, client_id, client_name, client_identification, messa
                         <td align="left" style="padding:0;Margin:0;width:525px">
                         <table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                           <tr>
-                            <td align="center" bgcolor="#efefef" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:10px;padding-bottom:10px;border-radius:8px;border:2px #3d85c6"><p class="es-m-txt-c" style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px !important;letter-spacing:0;color:#ffffff;font-size:14px"><a href="https://app.respond.io/space/335021/inbox/${client_id}">Abrir conversación</p></td>
+                            <td align="center" bgcolor="#efefef" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:10px;padding-bottom:10px;border-radius:8px;border:2px #3d85c6"><p class="es-m-txt-c" style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px !important;letter-spacing:0;color:#ffffff;font-size:14px"><a href="https://app.respond.io/space/{respond_space}/inbox/${client_id}">Abrir conversación</p></td>
                           </tr>
                         </table></td>
                       </tr>

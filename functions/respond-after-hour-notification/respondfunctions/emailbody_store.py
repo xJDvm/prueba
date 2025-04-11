@@ -1,3 +1,9 @@
+import json
+from int_respond_config import get_respond_config
+
+respond_config = json.loads(get_respond_config())
+respond_space = respond_config["respondSpace"]
+
 def build_html_store(e):
     try:
         print(e)
@@ -18,7 +24,7 @@ def build_html_store(e):
         image_adviser = f'''
             <span style="background:transparent">
                 En caso de cualquier inconveniente por favor contactar a soporte <br>.
-                <a href="https://app.respond.io/space/335021/inbox/{client_id}" style="text-decoration:underline;color:#0b5394;">Abrir conversación</a>
+                <a href="https://app.respond.io/space/{respond_space}/inbox/{client_id}" style="text-decoration:underline;color:#0b5394;">Abrir conversación</a>
             </span>
         '''
 
@@ -47,7 +53,7 @@ def build_html_store(e):
             image_adviser = f'''
                 <span style="background:transparent">
                     A continuación se anexan las imágenes enviadas por el cliente:<br>
-                    <a href="https://app.respond.io/space/180327/inbox/{client_id}" style="text-decoration:underline;color:#0b5394;">Abrir conversación</a>
+                    <a href="https://app.respond.io/space/{respond_space}/inbox/{client_id}" style="text-decoration:underline;color:#0b5394;">Abrir conversación</a>
                 </span>
             '''
 

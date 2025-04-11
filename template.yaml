@@ -58,8 +58,8 @@ Resources:
         - !Ref RespondContactCreatedSQS
         - !Ref RespondContactUpdatedSQS
         - !Ref RespondContactAssigneeUpdatedSQS
-        - !Ref RespondCoversationOpenedSQS
-        - !Ref RespondCoversationClosedSQS
+        - !Ref RespondConversationOpenedSQS
+        - !Ref RespondConversationClosedSQS
         - !Ref RespondMessageSentWorkflowSQS
       PolicyDocument:
         Version: '2012-10-17'
@@ -77,8 +77,8 @@ Resources:
               - !GetAtt RespondContactCreatedSQS.Arn
               - !GetAtt RespondContactUpdatedSQS.Arn
               - !GetAtt RespondContactAssigneeUpdatedSQS.Arn
-              - !GetAtt RespondCoversationOpenedSQS.Arn
-              - !GetAtt RespondCoversationClosedSQS.Arn
+              - !GetAtt RespondConversationOpenedSQS.Arn
+              - !GetAtt RespondConversationClosedSQS.Arn
               - !GetAtt RespondMessageSentWorkflowSQS.Arn
             Condition:
               ArnEquals:
@@ -197,6 +197,26 @@ Resources:
       Type: String
       Value: change-me
 
+  RDSToLambdaInvocationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: rds.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: RDSToLambdaInvocationPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: !GetAtt PendingMessageFunction.Arn
+
 ## Aurora RDS
   AuroraDBCluster:
     Type: AWS::RDS::DBCluster
@@ -211,6 +231,9 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DBSecurityGroup
       PreferredMaintenanceWindow: Sun:08:00-Sun:09:00
+      AssociatedRoles:
+        - FeatureName: Lambda
+          RoleArn: !GetAtt RDSToLambdaInvocationRole.Arn
 
   AuroraDBInstance:
     Type: AWS::RDS::DBInstance
@@ -642,22 +665,22 @@ Resources:
         flowtype:
           - "platform"
 
-## SQS CoversationOpened
-  RespondCoversationOpenedSQS:
+## SQS ConversationOpened
+  RespondConversationOpenedSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub ${AWS::StackName}-RespondCoversationOpenedSQS
+      QueueName: !Sub ${AWS::StackName}-RespondConversationOpenedSQS
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
         maxReceiveCount: 5
 
-  RespondCoversationOpenedSQSSubscription:
+  RespondConversationOpenedSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
       TopicArn: !Ref RespondSNSEntryPoint
       Protocol: sqs
-      Endpoint: !GetAtt RespondCoversationOpenedSQS.Arn
+      Endpoint: !GetAtt RespondConversationOpenedSQS.Arn
       FilterPolicyScope: MessageAttributes
       FilterPolicy: 
         event_type: 
@@ -666,22 +689,23 @@ Resources:
           - "platform"
 
 
-## SQS CoversationClosed
-  RespondCoversationClosedSQS:
+## SQS ConversationClosed
+  RespondConversationClosedSQS:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub ${AWS::StackName}-RespondCoversationClosedSQS
+      QueueName: !Sub ${AWS::StackName}-RespondConversationClosedSQS
       VisibilityTimeout: 180
+      DelaySeconds: 30
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
         maxReceiveCount: 5
 
-  RespondCoversationClosedSQSSubscription:
+  RespondConversationClosedSQSSubscription:
     Type: AWS::SNS::Subscription
     Properties:
       TopicArn: !Ref RespondSNSEntryPoint
       Protocol: sqs
-      Endpoint: !GetAtt RespondCoversationClosedSQS.Arn
+      Endpoint: !GetAtt RespondConversationClosedSQS.Arn
       FilterPolicyScope: MessageAttributes
       FilterPolicy: 
         event_type: 
@@ -1071,7 +1095,7 @@ Resources:
         SQSQueueEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt RespondCoversationOpenedSQS.Arn
+            Queue: !GetAtt RespondConversationOpenedSQS.Arn
             FunctionResponseTypes:
               - ReportBatchItemFailures
       Environment:
@@ -1107,7 +1131,7 @@ Resources:
         SQSQueueEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt RespondCoversationClosedSQS.Arn
+            Queue: !GetAtt RespondConversationClosedSQS.Arn
             FunctionResponseTypes:
               - ReportBatchItemFailures
       Environment:
@@ -1227,13 +1251,6 @@ Resources:
         - !Ref GetSecretPolicy
         - !Ref SendEmailPolicy
         - !Ref GetConfigParameterPolicy
-      Events: ## Evento programado para ejecutar cada minuto
-        ScheduleEvent:
-          Type: Schedule
-          Properties:
-            Name: !Sub ${AWS::StackName}-respond-pending-message
-            Schedule: rate(1 minute)
-            Description: "Schedule to check pending messages on respond.io"
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC

@@ -5,6 +5,11 @@ from respondfunctions.assign_conversation import assign_conversation
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 from int_respond_token import get_respond_token
+from int_respond_config import get_respond_config
+
+respond_config = json.loads(get_respond_config())
+store_assignee_map = respond_config.get("storeAssigneeMap", {})
+after_hour_assign_seconds = respond_config.get("afterHourAssignSeconds", 900)  # 15 minutos
 
 db_credentials = get_database_credentials()
 api_token = get_respond_token()
@@ -25,14 +30,6 @@ def lambda_handler(event, context):
             contact_id = str(data["contact_id"])
             store = data["store"]
             message_time = datetime.strptime(data["time"], '%Y-%m-%d %H:%M:%S')
-
-            store_assignee_map = {
-                "Curridabat": 273980,
-                "Escazú": 273980,
-                "Belén": 273980,
-                "Tibás": 475025,
-                "Desamparados": 475025
-            }
 
             assignee = store_assignee_map.get(store, None)
             print(f"Contact ID: {contact_id}, Assignee: {assignee}")
@@ -59,10 +56,10 @@ def lambda_handler(event, context):
 
                 diff_in = (now - time_last_mess_in).total_seconds()
 
-                if diff_in > 15:  # 900 segundos = 15 minutos
+                if diff_in > after_hour_assign_seconds:  # 900 segundos = 15 minutos
                     print(f"Primera validacion {assignee}")
                     # Cliente lleva más de 15 minutos sin responder
-                    if time_last_mess_out is None or (now - time_last_mess_out).total_seconds() > 15:
+                    if time_last_mess_out is None or (now - time_last_mess_out).total_seconds() > after_hour_assign_seconds:
                         print(f"Segunda validacion {assignee}")
                         if time_last_mess_out_wf is None or time_last_mess_out <= time_last_mess_out_wf:
                             print(f"Assigning conversation to {assignee}")

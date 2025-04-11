@@ -1,12 +1,16 @@
 import json
 import psycopg2.extras
+from botocore.exceptions import ClientError
+from respondfunctions.emailbody import build_html
 from respondfunctions.keyword_check import keyword_checker
 from int_respond_sendemail import send_email
-from respondfunctions.emailbody import build_html
-from botocore.exceptions import ClientError
+from int_respond_config import get_respond_config
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 
+respond_config = json.loads(get_respond_config())
+backup_email = respond_config["backupEmail"]
+support_emails = respond_config["supportEmails"]
 
 db_credentials = get_database_credentials()
 
@@ -61,9 +65,9 @@ def lambda_handler(event, context):
                     
                     lider_email = contact_info['lider_email'] if contact_info else []
                     
-                    recipient = [assignee_email] if assignee_email else ['jvaldes@intelix.biz']
+                    recipient = [assignee_email] if assignee_email else backup_email
                     cc = [lider_email] if lider_email else []
-                    bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                    bcc = support_emails
                     subject = "Respond.io | Notificación palabra clave detectada"
                     body_text = "Respond.io | Notificación palabra clave detectada"
 

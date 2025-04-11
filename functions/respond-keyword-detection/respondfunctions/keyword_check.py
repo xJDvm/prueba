@@ -21,7 +21,8 @@ def keyword_checker(message, contact):
         "Error", "Incompleto", "Pendiente", "No me contestan", "No tengo respuesta",
         "Me precisa", "Lo necesitaba para ayer", "Me pueden contestar",
         "Me pueden dar respuesta", "Me ignoraron", "Me dejaron en visto",
-        "Me falta", "Cómo puede ser posible", "Nadie me ayuda"
+        "Me falta", "Cómo puede ser posible", "Nadie me ayuda", "Me pueden cotizar", "faltó",
+        "no se incluyeron", "No incluyó", "No incluyeron", "robot", "fatal", "Uff", "lento", "preocupa", "pésimo"
     ]
 
     if not message:

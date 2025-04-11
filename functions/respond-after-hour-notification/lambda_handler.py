@@ -2,11 +2,16 @@ import json
 import psycopg2.extras
 import re
 from datetime import datetime, timedelta, timezone
-from int_respond_sendemail import send_email
 from respondfunctions.emailbody_asesor import build_html_asesor
 from respondfunctions.emailbody_store import build_html_store
+from int_respond_sendemail import send_email
+from int_respond_config import get_respond_config
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
+
+respond_config = json.loads(get_respond_config())
+backup_email = respond_config["backupEmail"]
+support_emails = respond_config["supportEmails"]
 
 db_credentials = get_database_credentials()
 
@@ -144,7 +149,7 @@ def lambda_handler(event, context):
                 incoming_messages = messages_array
                 incoming_photos = photos_array
                 
-                lider_email = data["lider_email"] if data["lider_email"] else 'jvaldes@intelix.biz'
+                lider_email = data["lider_email"] if data["lider_email"] else backup_email
                 
                 print(data)
                 
@@ -169,7 +174,7 @@ def lambda_handler(event, context):
                 
                 recipient = [email for email in store_emails if is_valid_email(email)]
                 if not recipient:
-                    recipient = ['jvaldes@intelix.biz']
+                    recipient = backup_email
                     print("No valid store emails found, using default recipient.")
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
@@ -177,8 +182,6 @@ def lambda_handler(event, context):
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body
                 
-                bcc=['projas@intelix.biz', 'jvaldes@intelix.biz']
-
                 if not all([recipient, subject, body_text, body_html]):
                     raise ValueError("Missing email parameters")
 
@@ -189,7 +192,7 @@ def lambda_handler(event, context):
                 agent_value = data["agent"]
                 document_value = data["client_identification"]
                 
-                asesor_email = data["asesor_email"] if data['asesor_email'] else 'jvaldes@intelix.biz'
+                asesor_email = data["asesor_email"] if data['asesor_email'] else backup_email
                 
 
                 
@@ -198,11 +201,11 @@ def lambda_handler(event, context):
                                 
                 recipient = [email for email in [asesor_email] if is_valid_email(email)]
                 if not recipient:
-                    recipient = ['jvaldes@intelix.biz']
+                    recipient = backup_email
                     print("No valid asesor email found, using default recipient.")
                     print(recipient)
                 cc = []
-                bcc = ['projas@intelix.biz', 'jvaldes@intelix.biz']
+                bcc = support_emails
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = build_html_asesor(contact_name, contact_id, agent_value, document_value)

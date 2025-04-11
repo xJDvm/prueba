@@ -1,3 +1,9 @@
+import json
+from int_respond_config import get_respond_config
+
+respond_config = json.loads(get_respond_config())
+respond_space = respond_config["respondSpace"]
+
 def build_html_asesor(clientName, clientId, analystName, clientDocument):
     
   bodyhtml = f"""      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -154,7 +160,7 @@ def build_html_asesor(clientName, clientId, analystName, clientDocument):
                         <td valign="top" align="center" class="es-m-p0r es-m-p20b" style="padding:0;Margin:0;width:93px">
                         <table width="100%" cellspacing="0" cellpadding="0" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                           <tr>
-                            <td align="left" class="es-m-txt-c" style="padding:0;Margin:0;font-size:0"><a target="_blank" href="https://pricing.epa.com" style="mso-line-height-rule:exactly;text-decoration:underline;color:#2CB543;font-size:14px"><img src="https://ebowiic.stripocdn.email/content/guids/CABINET_5ec98a9c69d68e739e9927b98229fec056175cbadea6e9455bb74959855b8f02/images/epa_logo_1.png" alt="" width="93" class="img-5001" height="29" style="display:block;font-size:14px;border:0;outline:none;text-decoration:none"></a></td>
+                            <td align="left" class="es-m-txt-c" style="padding:0;Margin:0;font-size:0"><a target="_blank" style="mso-line-height-rule:exactly;text-decoration:underline;color:#2CB543;font-size:14px"><img src="https://ebowiic.stripocdn.email/content/guids/CABINET_5ec98a9c69d68e739e9927b98229fec056175cbadea6e9455bb74959855b8f02/images/epa_logo_1.png" alt="" width="93" class="img-5001" height="29" style="display:block;font-size:14px;border:0;outline:none;text-decoration:none"></a></td>
                           </tr>
                         </table></td>
                       </tr>
@@ -267,7 +273,7 @@ def build_html_asesor(clientName, clientId, analystName, clientDocument):
                         <td align="left" style="padding:0;Margin:0;width:525px">
                         <table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
                           <tr>
-                            <td align="center" bgcolor="#efefef" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:10px;padding-bottom:10px;border-radius:8px;border:2px #3d85c6"><p class="es-m-txt-c" style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px !important;letter-spacing:0;color:#ffffff;font-size:14px"><a href="https://app.respond.io/space/335021/inbox/{clientId}">Abrir conversación</p></td>
+                            <td align="center" bgcolor="#efefef" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:10px;padding-bottom:10px;border-radius:8px;border:2px #3d85c6"><p class="es-m-txt-c" style="Margin:0;mso-line-height-rule:exactly;font-family:arial, 'helvetica neue', helvetica, sans-serif;line-height:21px !important;letter-spacing:0;color:#ffffff;font-size:14px"><a href="https://app.respond.io/space/{respond_space}/inbox/{clientId}">Abrir conversación</p></td>
                           </tr>
                         </table></td>
                       </tr>
