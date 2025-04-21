@@ -33,7 +33,7 @@ Resources:
   parameterResolver:
     Type: AWS::Serverless::Application
     Properties:
-      Location: parameter-resolver.yml
+      Location: parameter-resolver.yaml
       Parameters:
         #--------------------------------------------- (Redes y Seguridad)
         subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids

@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Connection to Initial Contact for Respond.IO
+
+
+Parameters:
+  subnetIDs:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Lista de subnets donde se encuentra la arquitectura
+
+  VpcID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Id del VPC donde se encuentra la arquitectura
+
+Resources:
+  NullResource:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+
+Outputs:
+  subnetIDs:
+    Value: !Ref subnetIDs
+  VpcID:
+    Value: !Ref VpcID
+
+
+
