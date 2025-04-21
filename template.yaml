@@ -25,26 +25,19 @@ Parameters:
     Description: Ambiente de la aplicacion.
 
 
-  SubnetIds:
-    Type: String
-    Default: Subnets para los recursos subnetid-1,subnetid-2
-    Description: SubnetIds.
-
-  VpcId:
-    Type: String
-
-# Globals:
-#   Function:
-#     VpcConfig:
-#       SubnetIds: !Split
-#         - ','
-#         - !Ref SubnetIds
-#       SecurityGroupIds:
-#         - !Ref SegurityGroupLambdaDefault
-
-
 
 Resources:
+
+  # Template auxiliar
+  # Ayuda a resolver parametros (Subnet por problema con split, y capa por problema de versiones)
+  parameterResolver:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: parameter-resolver.yml
+      Parameters:
+        #--------------------------------------------- (Redes y Seguridad)
+        subnetIDs: !Sub /${Environment}/ate/parameters/network/subnet-ids
+        VpcID: !Sub /${Environment}/ate/parameters/network/vpc-id
 
   GlobalSQSPolicy:
     Type: AWS::SQS::QueuePolicy
@@ -144,7 +137,7 @@ Resources:
     Properties:
       GroupName: !Sub "${AWS::StackName}-lambdadefault"
       GroupDescription: "default lambda security groups"
-      VpcId: !Ref VpcId
+      VpcId: !GetAtt parameterResolver.Outputs.VpcID
       SecurityGroupIngress:
         - IpProtocol: -1          
           CidrIp: 0.0.0.0/0
@@ -248,26 +241,26 @@ Resources:
       MonitoringRoleArn: !GetAtt DBPostgresMonitoringRoleTempFC.Arn
       PubliclyAccessible: true
 
-#DB Security Groups
+#DB Subnet Group
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnet group for Aurora RDS
       SubnetIds: !Split
         - ','
-        - !Ref SubnetIds
+        - !GetAtt parameterResolver.Outputs.subnetIDs
 
 
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for Aurora RDS
-      VpcId: !Ref VpcId
+      VpcId: !GetAtt parameterResolver.Outputs.VpcID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          CidrIp: 0.0.0.0/0
+          CidrIp: 10.48.0.0/16
 
   DBPostgresMonitoringRoleTempFC:
     Type: AWS::IAM::Role
