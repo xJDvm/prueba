@@ -85,7 +85,7 @@ Resources:
         Statement:
             - Effect: Allow
               Action: secretsmanager:GetSecretValue
-              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/temp/firstContact-*
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:respond/${Environment}/common/postgres/rds-*
 
   GetApiParameterPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -152,7 +152,7 @@ Resources:
   SecretCommonPostgresTempFC:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub respond/${Environment}/common/postgres/temp/firstContact
+      Name: !Sub respond/${Environment}/common/postgres/rds
       Description: Secret for RDS Proxy connection
       GenerateSecretString:
         SecretStringTemplate: '{"username": "masteradmin", "engine": "aurora-postgresql"}'
