@@ -132,7 +132,7 @@ Resources:
       BuildMethod: python3.12
 
 
-  SegurityGroupLambdaDefault:
+  SecurityGroupLambdaDefault:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub "${AWS::StackName}-lambdadefault"
@@ -249,6 +249,7 @@ Resources:
       SubnetIds: !Split
         - ','
         - !GetAtt parameterResolver.Outputs.subnetIDs
+
 
 
   DBSecurityGroup:
@@ -929,6 +930,11 @@ Resources:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+      VpcConfig:
+        SubnetIds: !Split [",", !GetAtt parameterResolver.Outputs.subnetIDs]
+        SecurityGroupIds:
+          - !Ref SecurityGroupLambdaDefault
+
 
   SaveMessageReceivedToDatabaseLogGroup:
     Type: AWS::Logs::LogGroup
