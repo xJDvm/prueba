@@ -239,7 +239,7 @@ Resources:
       PerformanceInsightsRetentionPeriod: 31
       MonitoringInterval: 60
       MonitoringRoleArn: !GetAtt DBPostgresMonitoringRoleTempFC.Arn
-      PubliclyAccessible: true
+      PubliclyAccessible: false
 
 #DB Subnet Group
   DBSubnetGroup:
