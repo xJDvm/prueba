@@ -268,7 +268,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          CidrIp: 10.48.0.0/16
+          CidrIp: 10.0.0.0/8
 
   DBPostgresMonitoringRoleTempFC:
     Type: AWS::IAM::Role
@@ -298,13 +298,13 @@ Resources:
                 "Effect": "Allow",
                 "Principal": "*",
                 "Action": "execute-api:Invoke",
-                "Resource": "arn:aws:execute-api:us-west-2:054670858840:9vefhxvgeb/*/*/*"
+                "Resource": "execute-api:/*/*/*"
               },
               {
                 "Effect": "Deny",
                 "Principal": "*",
                 "Action": "execute-api:Invoke",
-                "Resource": "arn:aws:execute-api:us-west-2:054670858840:9vefhxvgeb/*/*/*",
+                "Resource": "execute-api:/*/*/*",
                 "Condition": {
                   "NotIpAddress": {
                     "aws:SourceIp": [
