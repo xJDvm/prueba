@@ -28,6 +28,17 @@ Parameters:
 
 Resources:
 
+  Globals:
+    Function:
+      VpcConfig:
+        SubnetIds: !Split
+          - ','
+          - !GetAtt parameterResolver.Outputs.subnetIDs
+        SecurityGroupIds:
+          - !Ref SecurityGroupLambdaRespondDefault
+
+
+
   # Template auxiliar
   # Ayuda a resolver parametros (Subnet por problema con split, y capa por problema de versiones)
   parameterResolver:
@@ -132,7 +143,7 @@ Resources:
       BuildMethod: python3.12
 
 
-  SecurityGroupLambdaDefault:
+  SecurityGroupLambdaRespondDefault:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub "${AWS::StackName}-lambdadefault"
@@ -930,10 +941,6 @@ Resources:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
-      VpcConfig:
-        SubnetIds: !Split [",", !GetAtt parameterResolver.Outputs.subnetIDs]
-        SecurityGroupIds:
-          - !Ref SecurityGroupLambdaDefault
 
 
   SaveMessageReceivedToDatabaseLogGroup:
