@@ -209,7 +209,7 @@ Resources:
           Action: sts:AssumeRole
       Path: /
       Policies:
-      - PolicyName: RDSToLambdaInvocationPolicy
+      - PolicyName: !Sub ${Environment}-RDSToLambdaInvocationPolicyRespond
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -364,7 +364,7 @@ Resources:
   RespondEventBus:
     Type: AWS::Events::EventBus
     Properties:
-      Name: RespondEventBus
+      Name: !Sub ${Environment}-RespondEventBus
 
 
 
@@ -391,7 +391,7 @@ Resources:
             Action:
               - sts:AssumeRole
       Policies:
-        - PolicyName: AllowPutEvents
+        - PolicyName: !Sub ${Environment}-AllowPutEventsRespond
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -1216,23 +1216,6 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${SaveOutgoingMessagesFromWorkflowFunction}
       RetentionInDays: 30
-
-
-
-
-
-## HealthCheck Lambda
-  HealthCheckLambda:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: HealthCheckFunction
-      Runtime: python3.12
-      Handler: lambda_handler.lambda_handler
-      CodeUri: functions/health-check-function/
-      Timeout: 5
-      MemorySize: 128
-      Policies:
-        - AWSLambdaBasicExecutionRole
 
 
 
