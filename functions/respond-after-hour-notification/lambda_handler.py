@@ -10,6 +10,8 @@ from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 
 respond_config = json.loads(get_respond_config())
+after_hour_notification_seconds = respond_config.get("afterHourNotificationSeconds", 900)  # 15 minutos
+after_hour_notification_minutes = after_hour_notification_seconds / 60
 backup_email = respond_config["backupEmail"]
 support_emails = respond_config["supportEmails"]
 
@@ -152,7 +154,7 @@ def lambda_handler(event, context):
                 conn.close()
                 
                 client_name = contact_name
-                client_email = data["client_email"] if data.get("client_email") not in [None, 'null'] else 'Sin correo'
+                client_email = data["client_email"] if data.get("client_email") else 'Sin correo'
                 client_phone = data["client_phone"]
                 client_identification = data["client_identification"] if data.get("client_identification") not in [None, 'null'] else 'Sin cédula'
                 last_message_time = data["time"]

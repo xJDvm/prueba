@@ -222,7 +222,7 @@ def handle_quick_reply_message(data):
     timestamp = data["message"]["timestamp"]
     message_type = data["event_type"]
     title = data["message"]["message"]["title"]
-    replies = json.dumps(data["message"]["message"]["replies"], ensure_ascii=False)
+    message_replies = json.dumps(data["message"]["message"]["replies"], ensure_ascii=False)
     channel_id = data["channel"]["id"]
     message_datatype = data["message"]["message"]["type"]
     
@@ -249,10 +249,10 @@ def handle_quick_reply_message(data):
     conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_text, replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
+        INSERT INTO respond_io.messages (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, message_text, message_replies, channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, replies,  channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
+    cursor.execute(insert_query, (contact_id, assigned_user_id, message_id, message_classification, message_timestamp, message_type, message_datatype, title, message_replies,  channel_id, dl_created_at, dl_modified_at, dl_condition, data_json, mark_after_hours, message_user, message_workflow))
     conn.commit()
     cursor.close()
     conn.close()

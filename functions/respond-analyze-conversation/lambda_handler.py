@@ -79,7 +79,7 @@ def get_conversation_messages(conversation_cod):
         elif message['message_datatype'] == 'attachment':
             formatted_message['message']['content'] = {
                 'message_filename': message['message_filename'],
-                'message_url': message['messag`e_url'],
+                'message_url': message['message_url'],
                 'message_text': message['message_text'],  # Incluir message_text
             }
         elif message['message_datatype'] == 'location':
@@ -96,7 +96,7 @@ def get_conversation_messages(conversation_cod):
             formatted_message['message']['content'] = {
                 'type': 'quick_reply',
                 'message_text': message['message_text'],  # Incluir message_text
-                'replies': json.loads(message['replies'])  # Parsear replies desde JSON
+                'replies': json.loads(message['message_replies'])  # Parsear replies desde JSON
             }
         
         # Agregar el mensaje formateado a la lista de mensajes
