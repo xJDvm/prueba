@@ -61,7 +61,7 @@ def lambda_handler(event, context):
                     # Cliente lleva más de 15 minutos sin responder
                     if time_last_mess_out is None or (now - time_last_mess_out).total_seconds() > after_hour_assign_seconds:
                         print(f"Segunda validacion {assignee}")
-                        if time_last_mess_out_wf is None or time_last_mess_out <= time_last_mess_out_wf:
+                        if time_last_mess_out_wf is None or time_last_mess_out is None or time_last_mess_out <= time_last_mess_out_wf:
                             print(f"Assigning conversation to {assignee}")
                             
                             result = assign_conversation(contact_id, assignee, api_token)
