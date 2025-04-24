@@ -63,6 +63,8 @@ def get_photos_after_time(conn, current_time, contact_id):
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
+        print(f"Fotos encontradas: {rows}")
+        
         photos = [row['url'] for row in rows]
         photos_array = ",".join(photos)
         
@@ -97,6 +99,8 @@ def get_messages_after_time(conn, current_time, contact_id):
         print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
+        
+        print(f"Mensajes encontrados: {rows}")
         
         messages = [row['message_text'] for row in rows]
         messages_array = " - ".join(messages)
