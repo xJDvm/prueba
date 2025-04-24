@@ -831,6 +831,7 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - !Ref GetSecretPolicy
         - !Ref GetApiParameterPolicy
+        - !Ref GetConfigParameterPolicy
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -842,6 +843,7 @@ Resources:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC  
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter  
+          RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
 
 
 ## KeywordsDetected Lambda
