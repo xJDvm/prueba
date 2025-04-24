@@ -109,7 +109,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         print(f"Mensajes encontrados: {rows}")
         
         messages = [row['message_text'] for row in rows]
-        messages_array = ",".join(messages)
+        messages_array = " - ".join(messages)
         
         cursor.close()
         return messages_array
