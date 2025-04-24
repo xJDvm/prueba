@@ -65,7 +65,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         
         print(f"Fotos encontradas: {rows}")
         
-        photos = [row['url'] for row in rows]
+        photos = [row['message_url'] for row in rows]
         photos_array = ",".join(photos)
         
         cursor.close()
@@ -79,12 +79,18 @@ def get_messages_after_time(conn, current_time, contact_id):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Convertir la hora actual a timestamp y ajustarla a UTC (hora de Costa Rica a UTC)
+        # Parsear la hora recibida y asignar la zona horaria de Costa Rica
         current_time_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
         costa_rica_tz = timezone(timedelta(hours=-6))  # Costa Rica está en UTC-6
         current_time_dt = current_time_dt.replace(tzinfo=costa_rica_tz)
+
+        # Convertir la hora a UTC
         current_time_utc = current_time_dt.astimezone(timezone.utc)
+
+        # Restar 1 minuto para calcular ten_minutes_after
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
+        
+        print(f"Ten minutes after: {ten_minutes_after}")
 
         select_query = """
         SELECT message_text 
@@ -100,16 +106,10 @@ def get_messages_after_time(conn, current_time, contact_id):
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
-        cursor.execute("SELECT * FROM respond_io.messages LIMIT 10;")
-        print(cursor.fetchall())
-        
-        
         print(f"Mensajes encontrados: {rows}")
         
-        for row in rows:
-            print(f"Mensaje: {row['message_text']}")
-        messages = [row['message_text'] for row in rows]
-        messages_array = " - ".join(messages)
+        messages = [row['message_TEXT'] for row in rows]
+        messages_array = ",".join(messages)
         
         cursor.close()
         return messages_array
