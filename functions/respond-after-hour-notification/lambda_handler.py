@@ -95,13 +95,19 @@ def get_messages_after_time(conn, current_time, contact_id):
         AND contact_id = %s
         ORDER BY message_timestamp DESC
         """
-                
+            
         print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (ten_minutes_after, contact_id))
         rows = cursor.fetchall()
         
+        cursor.execute("SELECT * FROM respond_io.messages LIMIT 10;")
+        print(cursor.fetchall())
+        
+        
         print(f"Mensajes encontrados: {rows}")
         
+        for row in rows:
+            print(f"Mensaje: {row['message_text']}")
         messages = [row['message_text'] for row in rows]
         messages_array = " - ".join(messages)
         
