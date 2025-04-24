@@ -51,7 +51,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
         
         select_query = """
-        SELECT url 
+        SELECT message_url 
         FROM respond_io.messages 
         WHERE message_type = 'message.received' 
         AND message_datatype = 'image' 
@@ -178,6 +178,7 @@ def lambda_handler(event, context):
                     print("No valid store emails found, using default recipient.")
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
+                bcc = support_emails
                 subject = "Respond.io | Notificación de mensaje fuera de horario"
                 body_text = "Respond.io | Notificación de mensaje fuera de horario"
                 body_html = body

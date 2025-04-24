@@ -486,7 +486,7 @@ Resources:
     Properties:
       QueueName: !Sub ${AWS::StackName}-RespondMessageReceivedSQS
       VisibilityTimeout: 180
-      DelaySeconds: 30
+      DelaySeconds: 5
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
         maxReceiveCount: 5
