@@ -101,7 +101,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         AND message_classification = 'text' 
         AND message_timestamp > %s
         AND contact_id = %s
-        ORDER BY message_timestamp DESC
+        ORDER BY message_timestamp ASC
         """
             
         print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
