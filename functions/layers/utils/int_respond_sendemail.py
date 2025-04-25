@@ -5,8 +5,6 @@ from int_respond_config import get_respond_config
 
 respond_config = json.loads(get_respond_config())
 email_sender = respond_config["senderEmail"]
-print(respond_config)
-print(email_sender)
 
 def send_email(recipients, subject, body_text, body_html, cc_addresses=None, bcc_addresses=None):
 

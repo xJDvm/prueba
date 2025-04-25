@@ -52,14 +52,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         current_time_utc = current_time_dt.astimezone(timezone.utc)
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
         
-        select_query = """
-        SELECT message_url 
-        FROM respond_io.messages 
-        WHERE message_type = 'message.received' 
-        AND message_datatype = 'image' 
-        AND message_timestamp > %s
-        AND contact_id = %s
-        """
+        select_query = "SELECT message_url FROM respond_io.messages WHERE message_type = 'message.received' AND message_datatype = 'image' AND message_timestamp > %s AND contact_id = %s"
         
         print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (ten_minutes_after, contact_id))
@@ -92,7 +85,6 @@ def get_messages_after_time(conn, current_time, contact_id):
         # Restar 1 minuto para calcular ten_minutes_after
         ten_minutes_after = current_time_utc - timedelta(minutes=1)
         
-        print(f"Ten minutes after: {ten_minutes_after}")
 
         select_query = """
         SELECT message_text 
@@ -146,7 +138,7 @@ def lambda_handler(event, context):
                 
                 contact_info = get_contact_info(store, conn)
                 messages_array = get_messages_after_time(conn, current_time, contact_id)
-                photos_array = get_photos_after_time(conn, current_time, contact_id)
+                photos_array = get_photos_after_time(conn, current_tim<e, contact_id)
                 
                 store_emails = json.loads(contact_info)["store_emails"]
                 
@@ -154,9 +146,9 @@ def lambda_handler(event, context):
                 conn.close()
                 
                 client_name = contact_name
-                client_email = data["client_email"] if data.get("client_email") not in [None, 'null'] else 'Sin correo'
+                client_email = data["client_email"] if data.get("client_email").strip() not in [None, 'null'] else 'Sin correo'
                 client_phone = data["client_phone"]
-                client_identification = data["client_identification"] if data.get("client_identification") not in [None, 'null'] else 'Sin cédula'
+                client_identification = data["client_identification"] if data.get("client_identification").strip() not in [None, 'null'] else 'Sin cédula'
                 last_message_time = data["time"]
                 incoming_messages = messages_array
                 incoming_photos = photos_array
@@ -191,8 +183,8 @@ def lambda_handler(event, context):
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
                 bcc = support_emails
-                subject = f"Respond.io | Notificación de mensaje fuera de horario ${client_name}"
-                body_text = f"Respond.io | Notificación de mensaje fuera de horario ${client_name}"
+                subject = f"Respond.io | Notificación de mensaje fuera de horario - ({client_name})"
+                body_text = f"Respond.io | Notificación de mensaje fuera de horario - ({client_name})"
                 body_html = body
                 
                 if not all([recipient, subject, body_text, body_html]):

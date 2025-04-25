@@ -6,7 +6,6 @@ respond_space = respond_config["respondSpace"]
 
 def build_html_store(e):
     try:
-        print(e)
         store = e.get('store', '')  # Nombre del analista
         client_name = e.get('clientName', '')  # Nombre del cliente
         client_email = e.get('clientEmail', '')  # Email del cliente
