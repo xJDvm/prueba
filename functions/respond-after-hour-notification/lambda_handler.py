@@ -154,7 +154,7 @@ def lambda_handler(event, context):
                 conn.close()
                 
                 client_name = contact_name
-                client_email = data["client_email"] if data.get("client_email") else 'Sin correo'
+                client_email = data["client_email"] if data.get("client_email") not in [None, 'null'] else 'Sin correo'
                 client_phone = data["client_phone"]
                 client_identification = data["client_identification"] if data.get("client_identification") not in [None, 'null'] else 'Sin cédula'
                 last_message_time = data["time"]
@@ -191,8 +191,8 @@ def lambda_handler(event, context):
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
                 bcc = support_emails
-                subject = "Respond.io | Notificación de mensaje fuera de horario"
-                body_text = "Respond.io | Notificación de mensaje fuera de horario"
+                subject = f"Respond.io | Notificación de mensaje fuera de horario ${client_name}"
+                body_text = f"Respond.io | Notificación de mensaje fuera de horario ${client_name}"
                 body_html = body
                 
                 if not all([recipient, subject, body_text, body_html]):
