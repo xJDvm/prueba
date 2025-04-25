@@ -192,7 +192,7 @@ def analyze_conversation_with_bedrock(conversation):
 
         # Invocar el modelo de Bedrock
         response = bedrock_client.invoke_model(
-            modelId="anthropic.claude-3-5-haiku-20241022-v1:0",
+            modelId="us.anthropic.claude-3-5-haiku-20241022-v1:0",
             body=json.dumps(body),
             contentType="application/json",
             accept="application/json"
