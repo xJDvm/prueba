@@ -68,8 +68,8 @@ def lambda_handler(event, context):
                     recipient = [assignee_email] if assignee_email else backup_email
                     cc = [lider_email] if lider_email else []
                     bcc = support_emails
-                    subject = "Respond.io | Notificación palabra clave detectada"
-                    body_text = "Respond.io | Notificación palabra clave detectada"
+                    subject = f"Respond.io | Notificación palabra clave detectada - {contact_name}"
+                    body_text = f"Respond.io | Notificación palabra clave detectada - {contact_name}"
 
                     if not all([recipient, subject, body_text, body_html]):
                         raise ValueError("Missing email parameters")
