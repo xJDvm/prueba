@@ -71,7 +71,7 @@ def lambda_handler(event, context):
             contact_id = conversation['contact_id']
             response = close_conversations(contact_id, api_token)
 
-            if response['status'] == 404:
+            if response['status'] == 404 or response['status'] == 403:
                 print(f"Intentando cerrar manualmente la conversación para contact_id: {contact_id}")
                 close_conversation_manually(contact_id)
             elif response['status'] == 200:
