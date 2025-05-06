@@ -51,7 +51,7 @@ def handle_close_conversation(data):
         SET conversation_cod = %s,
             dl_modified_at = %s
         WHERE contact_id = %s
-        AND message_timestamp between %s and %s
+        AND dl_created_at between %s and %s
         """
     
     cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))

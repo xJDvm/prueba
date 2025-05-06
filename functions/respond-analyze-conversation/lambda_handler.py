@@ -417,7 +417,7 @@ def lambda_handler(event, context):
             </html>
         """
         
-        send_email(recipient, subject, body_text, body_html, cc)
+        # send_email(recipient, subject, body_text, body_html, cc)
         
         return {
             'statusCode': 200,

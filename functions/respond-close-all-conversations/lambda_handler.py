@@ -46,7 +46,7 @@ def close_conversation_manually(contact_id):
         cursor.execute("""
             UPDATE respond_io.messages
             SET conversation_cod = %s, dl_modified_at = %s
-            WHERE contact_id = %s AND message_timestamp BETWEEN %s AND %s
+            WHERE contact_id = %s AND dl_created_at BETWEEN %s AND %s
         """, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
 
         conn.commit()
