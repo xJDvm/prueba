@@ -64,7 +64,7 @@ def lambda_handler(event, context):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         # Obtener todas las conversaciones abiertas
-        cursor.execute("SELECT contact_id FROM respond_io.conversation WHERE conversation_status = 'open'")
+        cursor.execute("SELECT contact_id FROM respond_io.conversation WHERE conversation_status != 'closed'")
         conversations = cursor.fetchall()
 
         for conversation in conversations:
