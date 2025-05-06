@@ -74,7 +74,7 @@ def get_conversation_messages(conversation_cod):
         # Determinar el tipo de mensaje y formatear según corresponda
         if message['message_datatype'] == 'text':
             formatted_message['message']['content'] = {
-                'text': message['message_text']
+                'message_text': message['message_text']
             }
         elif message['message_datatype'] == 'attachment':
             formatted_message['message']['content'] = {
@@ -116,15 +116,15 @@ def format_conversation(messages):
         content = message['message']['content']
         
         if message['message']['datatype'] == 'text':
-            text = content.get('text', '')
-        elif message['message']['datatype'] == 'attachment':
-            text = f"Archivo adjunto: {content.get('message_filename', '')} - {content.get('message_text', '')}"
+            text = content.get('message_text', '')
+        elif message['message']['classification'] == 'attachment':
+            text = f"Archivo adjunto: {content.get('message_filename', '')} - {content.get('message_text', '(Archivo adjunto sin texto)')}"
         elif message['message']['datatype'] == 'location':
             text = f"Ubicación: Latitud {content.get('message_latitude', '')}, Longitud {content.get('message_longitude', '')}, Dirección: {content.get('message_address', '')}"
         elif message['message']['datatype'] == 'template':
             text = f"Plantilla: {content.get('template_id', '')}"
         elif message['message']['datatype'] == 'quick_reply':
-            text = f"Respuesta rápida: {content.get('message_text', '')} - Opciones: {', '.join(content.get('replies', []))}"
+            text = f"Respuesta rápida: {content.get('message_text', '(Quick reply adjunta sin texto)')} - Opciones: {', '.join(content.get('replies', []))}"
         else:
             text = "Mensaje no reconocido"
         
