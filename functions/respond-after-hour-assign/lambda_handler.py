@@ -72,7 +72,8 @@ def lambda_handler(event, context):
 
         except Exception as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
-            print('ERROR:', e)
+            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+
 
     sqs_batch_response["batchItemFailures"] = batch_item_failures
     return sqs_batch_response

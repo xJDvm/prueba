@@ -56,6 +56,7 @@ def close_conversation_manually(contact_id):
 
     except Exception as e:
         print(f'Error al cerrar manualmente la conversación: {e}')
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
 
 def lambda_handler(event, context):
     """Handler principal de la Lambda."""
@@ -83,3 +84,4 @@ def lambda_handler(event, context):
         cursor.close()
     except Exception as e:
         print(f"ERROR en lambda_handler: {e}")
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))

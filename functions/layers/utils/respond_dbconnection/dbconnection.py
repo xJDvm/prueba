@@ -23,4 +23,5 @@ def connect(credentials):
         raise ValueError(f"Missing key in credentials: {e}")
     except Exception as e:
         print(f"Error in database connection: {e}")
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         raise e

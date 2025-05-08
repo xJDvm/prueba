@@ -421,6 +421,6 @@ def build_html_store(e):
 
         return body_html
 
-    except Exception as ex:
-        print(f"Error: {ex}")
+    except Exception as e:
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return ""

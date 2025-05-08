@@ -23,6 +23,7 @@ def get_conversation_messages(conversation_cod):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     except Exception as e:
         logger.error(f"Error al conectar a la base de datos: {str(e)}")
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return {
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
@@ -42,6 +43,7 @@ def get_conversation_messages(conversation_cod):
         print(messages)
     except Exception as e:
         logger.error(f"Error al ejecutar la consulta: {str(e)}")
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return {
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
@@ -207,8 +209,9 @@ def analyze_conversation_with_bedrock(conversation):
 
         return resultado
 
-    except Exception as ex:
-        logger.error("Error al analizar la conversación con Bedrock: %s", str(ex))
+    except Exception as e:
+        logger.error("Error al analizar la conversación con Bedrock: %s", str(e))
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         raise
 
 def lambda_handler(event, context):
@@ -427,9 +430,10 @@ def lambda_handler(event, context):
             'body': json.dumps(response, ensure_ascii=False)
         }
     
-    except Exception as ex:
-        print(f"Error al analizar la conversación: {str(ex)}")
+    except Exception as e:
+        print(f"Error al analizar la conversación: {str(e)}")
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return {
             'statusCode': 500,
-            'body': json.dumps({'error': str(ex)})
+            'body': json.dumps({'error': str(e)})
         }

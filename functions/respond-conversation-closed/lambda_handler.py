@@ -55,13 +55,14 @@ def handle_close_conversation(data):
         """
     
     cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))
+    print("Datos actualizados correctamente en la tabla respond_io.conversation para el contacto con ID:", contact_id)
     
     cursor.execute(insert_conversation_cod_query, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
+    print("Datos actualizados correctamente en la tabla respond_io.messages para el contacto con ID:", contact_id)
     
     conn.commit()
     cursor.close()
     conn.close()
-    print("Datos actualizados correctamente en la tabla respond_io.conversation")
     
     # Invocar la función de análisis de conversación
     invoke_analyze_conversation(conversation_cod)
@@ -81,7 +82,7 @@ def lambda_handler(event, context):
 
         except Exception as e:
             print('Error procesando el mensaje')
-            print(e)
+            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
             batch_item_failures.append({"itemIdentifier": record['messageId']})
 
     sqs_batch_response["batchItemFailures"] = batch_item_failures

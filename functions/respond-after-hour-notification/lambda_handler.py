@@ -66,8 +66,8 @@ def get_photos_after_time(conn, current_time, contact_id):
         cursor.close()
         return photos_array
 
-    except Exception as ex:
-        print(f"Error: {ex}")
+    except Exception as e:
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return ""
 
 def get_messages_after_time(conn, current_time, contact_id):
@@ -108,8 +108,8 @@ def get_messages_after_time(conn, current_time, contact_id):
         cursor.close()
         return messages_array
 
-    except Exception as ex:
-        print(f"Error: {ex}")
+    except Exception as e:
+        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
         return ""
 
 
@@ -224,7 +224,7 @@ def lambda_handler(event, context):
         except Exception as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
             print('ERROR')
-            print(e)
+            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
 
 
     sqs_batch_response["batchItemFailures"] = batch_item_failures
