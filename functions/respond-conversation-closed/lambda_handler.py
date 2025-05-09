@@ -27,14 +27,14 @@ def invoke_analyze_conversation(conversation_cod):
 def handle_close_conversation(data):
     contact_id = str(data["contact"]["id"])
     conversation_cod = f"{contact_id}{data['conversation']['openedTime']}"
-    conversation_closed_at = datetime.datetime.fromtimestamp(data["conversation"]["closedTime"]).isoformat()
-    conversation_opened_at = datetime.datetime.fromtimestamp(data["conversation"]["openedTime"]).isoformat()
+    conversation_closed_at = data["conversation"]["closedTime"]
+    conversation_opened_at = data["conversation"]["openedTime"]
     close_by_id = str(data["conversation"]["closedBy"]["id"]) if data["conversation"]["closedBy"]["id"] else data["conversation"]["closedBySource"]
     conversation_status = data["contact"]["status"]
     dl_modified_at = datetime.datetime.now().isoformat()
     
-    closed_time = conversation_closed_at + datetime.timedelta(seconds=2)
-    opened_time = conversation_opened_at - datetime.timedelta(seconds=2)
+    closed_time = (datetime.datetime.fromtimestamp(conversation_closed_at) + datetime.timedelta(seconds=2)).isoformat()
+    opened_time = (datetime.datetime.fromtimestamp(conversation_opened_at)- datetime.timedelta(seconds=2)).isoformat()
     
     
     print("Closed at: ", conversation_closed_at, "\nClosed time:", closed_time)
@@ -58,7 +58,7 @@ def handle_close_conversation(data):
         SET conversation_cod = %s,
             dl_modified_at = %s
         WHERE contact_id = %s
-        AND dl_created_at between %s and %s
+        AND message_timestamp between %s and %s
         """
     
     cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))
