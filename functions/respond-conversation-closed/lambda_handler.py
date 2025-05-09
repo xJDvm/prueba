@@ -35,10 +35,7 @@ def handle_close_conversation(data):
     
     closed_time = (datetime.datetime.fromtimestamp(conversation_closed_at) + datetime.timedelta(seconds=2)).isoformat()
     opened_time = (datetime.datetime.fromtimestamp(conversation_opened_at)- datetime.timedelta(seconds=2)).isoformat()
-    
-    
-    print("Closed at: ", conversation_closed_at, "\nClosed time:", closed_time)
-    print("Opened at: ", conversation_opened_at, "\nOpened time:", opened_time)
+
 
     conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
