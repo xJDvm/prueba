@@ -27,11 +27,18 @@ def invoke_analyze_conversation(conversation_cod):
 def handle_close_conversation(data):
     contact_id = str(data["contact"]["id"])
     conversation_cod = f"{contact_id}{data['conversation']['openedTime']}"
-    closed_time = datetime.datetime.fromtimestamp(data["conversation"]["closedTime"]).isoformat()
+    conversation_closed_at = datetime.datetime.fromtimestamp(data["conversation"]["closedTime"]).isoformat()
     conversation_opened_at = datetime.datetime.fromtimestamp(data["conversation"]["openedTime"]).isoformat()
     close_by_id = str(data["conversation"]["closedBy"]["id"]) if data["conversation"]["closedBy"]["id"] else data["conversation"]["closedBySource"]
     conversation_status = data["contact"]["status"]
     dl_modified_at = datetime.datetime.now().isoformat()
+    
+    closed_time = conversation_closed_at + datetime.timedelta(seconds=2)
+    opened_time = conversation_opened_at - datetime.timedelta(seconds=2)
+    
+    
+    print("Closed at: ", conversation_closed_at, "\nClosed time:", closed_time)
+    print("Opened at: ", conversation_opened_at, "\nOpened time:", opened_time)
 
     conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -57,7 +64,7 @@ def handle_close_conversation(data):
     cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))
     print("Datos actualizados correctamente en la tabla respond_io.conversation para el contacto con ID:", contact_id)
     
-    cursor.execute(insert_conversation_cod_query, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
+    cursor.execute(insert_conversation_cod_query, (conversation_cod, dl_modified_at, contact_id, opened_time, closed_time))
     print("Datos actualizados correctamente en la tabla respond_io.messages para el contacto con ID:", contact_id)
     
     conn.commit()
