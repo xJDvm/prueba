@@ -58,7 +58,7 @@ def handle_close_conversation(data):
         AND message_timestamp between %s and %s
         """
     
-    cursor.execute(update_query, (closed_time, close_by_id, conversation_status, dl_modified_at, conversation_cod))
+    cursor.execute(update_query, (closed_time, close_by_id, 'closed', dl_modified_at, conversation_cod))
     print("Datos actualizados correctamente en la tabla respond_io.conversation para el contacto con ID:", contact_id)
     
     cursor.execute(insert_conversation_cod_query, (conversation_cod, dl_modified_at, contact_id, opened_time, closed_time))

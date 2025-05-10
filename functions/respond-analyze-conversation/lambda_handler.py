@@ -142,9 +142,10 @@ def analyze_conversation_with_bedrock(conversation):
     """
     Envía la conversación a Bedrock para su análisis.
     """
+
     try:
         # Construir el prompt para el análisis
-        prompt = (
+        """prompt = (
             "Analiza la conversación entre un cliente y un agente tomando en cuenta los siguientes criterios antes de determinar el nivel de atención del agente:\n"
             "- Evalúa si el cliente realmente interactuó con el agente antes de concluir que el nivel de atención fue deficiente.\n"
             "- Si el cliente no respondió o no completó el workflow, no penalices al agente injustamente.\n"
@@ -173,8 +174,15 @@ def analyze_conversation_with_bedrock(conversation):
             '  "conversacion_abandonada_asesor": "si | no. Determina si el asesor dejó de responder antes de que la consulta fuera resuelta, sin aviso o seguimiento.",\n'
             '  "analisis_sentimiento_cliente": "Enum: positivo | neutral | negativo. Evalúa el tono del cliente basándose en sus mensajes."\n'
             '}'
-        )
-
+        )"""
+        conn = connect(db_credentials)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute("SELECT prompt FROM respond_io.ia_prompts WHERE category = 'analyze_conversation'")
+        prompt = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        logger.info("Prompt obtenido de la base de datos: %s", prompt)
+        
         body = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1000,

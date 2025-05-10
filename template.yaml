@@ -1268,6 +1268,10 @@ Resources:
         - !Ref GetSecretPolicy
         - !Ref GetApiParameterPolicy
         - !Ref GetConfigParameterPolicy
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt AnalyzeConversationFunction.Arn
       Events: ## Evento programado para ejecutar a las 4 am
         ScheduleEvent:
           Type: Schedule
@@ -1280,6 +1284,7 @@ Resources:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter
           RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
+          ANALYZE_CONVERSATION_FUNCTION_NAME: !Ref AnalyzeConversationFunction
 
 
   CloseAllConversationsLogGroup:

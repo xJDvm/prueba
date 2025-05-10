@@ -1,6 +1,7 @@
 import psycopg2.extras
 import json
-from datetime import datetime,timedelta
+import os
+from datetime import datetime
 from respondfunctions.send_respond_request import close_conversations
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
@@ -11,7 +12,19 @@ db_credentials = get_database_credentials()
 api_token = get_respond_token()
 respond_config = json.loads(get_respond_config())
 
-
+def invoke_analyze_conversation(conversation_cod):
+    analyze_conversation_function_name = os.environ['ANALYZE_CONVERSATION_FUNCTION_NAME']
+    lambda_client = boto3.client('lambda')
+    
+    payload = {
+        "conversation_cod": conversation_cod
+    }
+    
+    lambda_client.invoke(
+        FunctionName=analyze_conversation_function_name,
+        InvocationType='RequestResponse',
+        Payload=json.dumps(payload)
+    )
 
 def close_conversation_manually(contact_id):
     """Cierra una conversación manualmente en la base de datos si la API no la puede cerrar."""
@@ -21,9 +34,9 @@ def close_conversation_manually(contact_id):
 
         # Obtener conversación abierta
         cursor.execute("""
-            SELECT conversation_cod, conversation_opened_at
+            SELECT conversation_cod, conversation_opened_at, closed_time
             FROM respond_io.conversation
-            WHERE contact_id = %s AND conversation_status = 'open'
+            WHERE contact_id = %s AND conversation_status != 'closed'
         """, (contact_id,))
         
         conversation = cursor.fetchone()
@@ -33,21 +46,25 @@ def close_conversation_manually(contact_id):
 
         conversation_cod = conversation['conversation_cod']
         conversation_opened_at = conversation['conversation_opened_at']
-        closed_time = datetime.now().isoformat()
+        closed_time = conversation['closed_time'] if conversation['closed_time'] else datetime.now().isoformat()
         dl_modified_at = datetime.now().isoformat()
 
         # Actualizar la conversación en la base de datos
         cursor.execute("""
             UPDATE respond_io.conversation
-            SET closed_time = %s, close_by_id = 'api', conversation_status = 'closed', dl_modified_at = %s
+            SET closed_time = %s, close_by_id = '   api', conversation_status = 'closed', dl_modified_at = %s
             WHERE conversation_cod = %s
         """, (closed_time, dl_modified_at, conversation_cod))
 
+        # Actualizar los mensajes relacionados
         cursor.execute("""
             UPDATE respond_io.messages
             SET conversation_cod = %s, dl_modified_at = %s
-            WHERE contact_id = %s AND dl_created_at BETWEEN %s AND %s
+            WHERE contact_id = %s AND message_timestamp BETWEEN %s AND %s
         """, (conversation_cod, dl_modified_at, contact_id, conversation_opened_at, closed_time))
+        
+        ## Invocar la función de análisis de conversación para las conversaciones cerradas manualmente
+        invoke_analyze_conversation(conversation_cod)
 
         conn.commit()
         cursor.close()
