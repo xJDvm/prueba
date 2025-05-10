@@ -8,10 +8,10 @@ db_credentials = get_database_credentials()
 
 def handle_create_contact(data):
     contact_id = data["contact"]["id"]
-    firstname = data["contact"]["firstName"]
-    lastname = data["contact"]["lastName"]
-    phone = data["contact"]["phone"]
-    email = data["contact"]["email"]
+    contact_firstname = data["contact"]["firstName"]
+    contact_lastname = data["contact"]["lastName"]
+    contact_phone = data["contact"]["phone"]
+    contact_email = data["contact"]["email"]
     assignee_id = data["contact"]["assignee"]["id"]
     assignee_firstname = data["contact"]["assignee"]["firstName"]
     assignee_lastname = data["contact"]["assignee"]["lastName"]
@@ -28,10 +28,10 @@ def handle_create_contact(data):
     conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.contacts (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition)
+        INSERT INTO respond_io.contacts (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, firstname, lastname, phone, email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition))
     conn.commit()
     cursor.close()
     conn.close()
