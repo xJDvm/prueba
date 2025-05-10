@@ -138,7 +138,7 @@ def lambda_handler(event, context):
                 
                 contact_info = get_contact_info(store, conn)
                 messages_array = get_messages_after_time(conn, current_time, contact_id)
-                photos_array = get_photos_after_time(conn, current_tim<e, contact_id)
+                photos_array = get_photos_after_time(conn, current_time, contact_id)
                 
                 store_emails = json.loads(contact_info)["store_emails"]
                 
