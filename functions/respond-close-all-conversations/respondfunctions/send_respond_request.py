@@ -20,7 +20,7 @@ def close_conversations(contact, api_token):
         }
     except Exception as error:
         print(f"Error en close_conversations: {error}")
-        print(json.dumps({'ErrorRespond': str(error), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(error)}))
         return {
             "success": False,
             "status": None,

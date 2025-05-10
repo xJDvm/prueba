@@ -65,7 +65,7 @@ def keyword_checker(message, contact):
 
         except Exception as error:
             print(error)
-            print(json.dumps({'ErrorRespond': str(error), 'Record': record}))
+            print(json.dumps({'ErrorRespond': str(error)}))
             return {"success": False, "error": str(error)}
 
     else:

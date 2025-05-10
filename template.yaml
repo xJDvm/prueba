@@ -1261,7 +1261,7 @@ Resources:
       CodeUri: functions/respond-close-all-conversations/
       Layers:
         - !Ref UtilsLayer
-      Timeout: 30
+      Timeout: 90
       MemorySize: 128
       Policies:
         - AWSLambdaBasicExecutionRole

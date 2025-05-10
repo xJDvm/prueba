@@ -26,5 +26,5 @@ def create_comment(message, contact, api_token):
 
     except Exception as error:
         print(error)
-        print(json.dumps({'ErrorRespond': str(error), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(error)}))
         return {"success": False, "error": str(error)}

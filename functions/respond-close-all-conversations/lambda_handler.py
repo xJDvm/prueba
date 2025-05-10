@@ -35,7 +35,7 @@ def close_conversation_manually(contact_id):
 
         # Obtener conversación abierta
         cursor.execute("""
-            SELECT conversation_cod, conversation_opened_at, closed_time
+            SELECT conversation_cod, conversation_opened_at, closed_time, close_by_id
             FROM respond_io.conversation
             WHERE contact_id = %s AND conversation_status != 'closed'
         """, (contact_id,))
@@ -48,14 +48,15 @@ def close_conversation_manually(contact_id):
         conversation_cod = conversation['conversation_cod']
         conversation_opened_at = conversation['conversation_opened_at']
         closed_time = conversation['closed_time'] if conversation['closed_time'] else datetime.now().isoformat()
+        close_by_id = conversation['close_by_id'] if conversation['close_by_id'] else 'api'
         dl_modified_at = datetime.now().isoformat()
 
         # Actualizar la conversación en la base de datos
         cursor.execute("""
             UPDATE respond_io.conversation
-            SET closed_time = %s, close_by_id = 'api', conversation_status = 'closed', dl_modified_at = %s
+            SET closed_time = %s, close_by_id = %s, conversation_status = 'closed', dl_modified_at = %s
             WHERE conversation_cod = %s
-        """, (closed_time, dl_modified_at, conversation_cod))
+        """, (closed_time, close_by_id, dl_modified_at, conversation_cod))
 
         # Actualizar los mensajes relacionados
         cursor.execute("""
@@ -102,4 +103,4 @@ def lambda_handler(event, context):
         cursor.close()
     except Exception as e:
         print(f"ERROR en lambda_handler: {e}")
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e)}))

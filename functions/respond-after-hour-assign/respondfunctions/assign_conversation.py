@@ -31,5 +31,5 @@ def assign_conversation(contact, assignee, api_token):
         }
 
     except Exception as error:
-        print(json.dumps({'ErrorRespond': str(error), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(error)}))
         return {"success": False, "error": str(error)}
