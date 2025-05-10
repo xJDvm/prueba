@@ -24,5 +24,5 @@ def get_database_credentials():
         raise
     except Exception as e:
         print(f"Error inesperado: {e}")
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e)}))
         raise

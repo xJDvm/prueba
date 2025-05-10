@@ -67,7 +67,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         return photos_array
 
     except Exception as e:
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e), "ContactId": contact_id}))
         return ""
 
 def get_messages_after_time(conn, current_time, contact_id):
@@ -109,7 +109,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         return messages_array
 
     except Exception as e:
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e), "ContactId": contact_id}))
         return ""
 
 

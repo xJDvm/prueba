@@ -29,7 +29,7 @@ def lambda_handler(event, context):
             # Conexión a la base de datos
             conn = connect(db_credentials)
         except Exception as e:
-            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+            print(json.dumps({'ErrorRespond': str(e)}))
             return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": "Database connection failed"})
 
         # Crear un cursor
@@ -58,7 +58,7 @@ def lambda_handler(event, context):
 
         except Exception as e:
             print('error en la consulta')
-            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+            print(json.dumps({'ErrorRespond': str(e)}))
             return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
         finally:
             cursor.close()
@@ -74,7 +74,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
         # Manejar el error
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e)}))
         return lambda_response(HttpStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
 
     pass

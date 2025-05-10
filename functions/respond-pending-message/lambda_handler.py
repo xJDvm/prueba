@@ -87,11 +87,11 @@ def lambda_handler(event, context):
                         
             except Exception as e:
                 print(f'ERROR: {e}')
-                print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+                print(json.dumps({'ErrorRespond': str(e), 'Conversation': conversation}))
 
         conn.commit()
         cursor.close()
 
     except Exception as e:
         print(f'ERROR: {e}')
-        print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+        print(json.dumps({'ErrorRespond': str(e)}))
