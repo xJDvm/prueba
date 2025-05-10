@@ -23,31 +23,14 @@ def handle_create_contact(data):
     # Buscar el contacto en la tabla respond_io.contacts
     select_query = "SELECT * FROM respond_io.contacts WHERE contact_id = %s"
     cursor.execute(select_query, (contact_id,))
-    contact = cursor.fetchone()
+    old_contact = cursor.fetchone()
 
-    if contact:
+    if old_contact:
         insert_query = """
-            INSERT INTO respond_io.contacts_moved (contact_id, firstname, lastname, phone, email, status, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO respond_io.contacts_moved (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, contact_identification, agent_name, agent_email, leader_name, leader_email, contact_province, contact_canton, contact_district, contact_sector, contact_bp_code, contact_code_country, dl_created_at, dl_modified_at, dl_condition)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Moved')
         """
-        cursor.execute(insert_query, (
-            contact['contact_id'], 
-            contact['firstname'], 
-            contact['lastname'], 
-            contact['phone'], 
-            contact['email'], 
-            contact['status'],
-            contact['assignee_id'],
-            contact['assignee_firstname'],
-            contact['assignee_lastname'],
-            contact['assignee_email'], 
-            contact['client_identification'], 
-            contact['asesor_name'], 
-            contact['asesor_email'], 
-            contact['lider_email'],
-            contact['dl_created_at'], 
-            dl_modified_at
-        ))
+        cursor.execute(insert_query, (old_contact['contact_id'], old_contact['firstname'], old_contact['lastname'], old_contact['phone'], old_contact['email'], old_contact['assignee_id'], old_contact['assignee_firstname'], old_contact['assignee_lastname'], old_contact['assignee_email'], old_contact["contact_identification"], old_contact["agent_name"], old_contact["agent_email"], old_contact['leader_name'], old_contact["leader_email"], old_contact['contact_province'], old_contact['contact_canton'], old_contact['contact_district'], old_contact['contact_sector'], old_contact['contact_bp_code'], old_contact['contact_code_country'], old_contact['dl_created_at'], old_contact['dl_modified_at']))
         
         
         # Actualizar los datos del assignee en la tabla respond_io.contacts

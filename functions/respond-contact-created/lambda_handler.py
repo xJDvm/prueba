@@ -16,10 +16,17 @@ def handle_create_contact(data):
     assignee_firstname = data["contact"]["assignee"]["firstName"]
     assignee_lastname = data["contact"]["assignee"]["lastName"]
     assignee_email = data["contact"]["assignee"]["email"]
-    client_identification = data["contact"]["cedula"]
-    asesor_name = data["contact"]["agente"]
-    asesor_email = data["contact"]["correo_agente"]
-    lider_email = data["contact"]["correo_del_lider"]
+    contact_identification = data["contact"]["cedula"]
+    agent_name = data["contact"]["agente"]
+    agent_email = data["contact"]["correo_agente"]
+    leader_name = data["contact"]["lider_agente"]
+    leader_email = data["contact"]["correo_del_lider"]
+    contact_province = data["contact"]["provincia"]
+    contact_canton = data["contact"]["canton"]
+    contact_district = data["contact"]["distrito"]
+    contact_sector = data["contact"]["sector"]
+    contact_bp_code = data["contact"]["bp"]
+    contact_code_country = data["contact"]["countryCode"]
     
     dl_created_at = datetime.datetime.now().isoformat()
     dl_modified_at = datetime.datetime.now().isoformat()
@@ -28,10 +35,10 @@ def handle_create_contact(data):
     conn = connect(db_credentials)
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     insert_query = """
-        INSERT INTO respond_io.contacts (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO respond_io.contacts (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, contact_identification, agent_name, agent_email, leader_name, leader_email, contact_province, contact_canton, contact_district, contact_sector, contact_bp_code, contact_code_country, dl_created_at, dl_modified_at, dl_condition)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    cursor.execute(insert_query, (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, client_identification, asesor_name, asesor_email, lider_email, dl_created_at, dl_modified_at, dl_condition))
+    cursor.execute(insert_query, (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, contact_identification, agent_name, agent_email, leader_name, leader_email, contact_province, contact_canton, contact_district, contact_sector, contact_bp_code, contact_code_country, dl_created_at, dl_modified_at, dl_condition))
     conn.commit()
     cursor.close()
     conn.close()
