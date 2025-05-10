@@ -1,6 +1,7 @@
 import psycopg2.extras
 import json
 import os
+import boto3
 from datetime import datetime
 from respondfunctions.send_respond_request import close_conversations
 from respond_dbconnection.dbconnection import connect
