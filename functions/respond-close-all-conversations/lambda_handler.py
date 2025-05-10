@@ -52,7 +52,7 @@ def close_conversation_manually(contact_id):
         # Actualizar la conversación en la base de datos
         cursor.execute("""
             UPDATE respond_io.conversation
-            SET closed_time = %s, close_by_id = '   api', conversation_status = 'closed', dl_modified_at = %s
+            SET closed_time = %s, close_by_id = 'api', conversation_status = 'closed', dl_modified_at = %s
             WHERE conversation_cod = %s
         """, (closed_time, dl_modified_at, conversation_cod))
 
