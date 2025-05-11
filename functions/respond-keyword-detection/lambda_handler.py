@@ -8,21 +8,22 @@ from int_respond_config import get_respond_config
 from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 
-respond_config = json.loads(get_respond_config())
+respond_config_raw = get_respond_config()
+respond_config = json.loads(respond_config_raw)
+print(f"Valor de respond_config: {respond_config}")
 backup_email = respond_config["backupEmail"]
 support_emails = respond_config["supportEmails"]
 
+
 db_credentials = get_database_credentials()
-
-
 
 
 def get_contact_info(contact_id, conn):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cursor.execute("SELECT lider_email FROM respond_io.contacts WHERE contact_id = %s", (str(contact_id),))
+        cursor.execute("SELECT leader_email FROM respond_io.contacts WHERE contact_id = %s", (str(contact_id),))
         contact = cursor.fetchone()
-        lider_email = contact['lider_email'] if contact else None
+        lider_email = contact['leader_email'] if contact else None
         cursor.close()
     except psycopg2.Error as e:
         print(f"Database error: {e}")

@@ -41,12 +41,13 @@ def handle_create_contact(data):
     old_contact = cursor.fetchone()
 
     if old_contact:
+        print("Old contact found, moving to contacts_moved: ", old_contact)
         # Mover el contacto a la tabla respond_io.contacts_moved
         move_query = """
             INSERT INTO respond_io.contacts_moved (contact_id, contact_firstname, contact_lastname, contact_phone, contact_email, assignee_id, assignee_firstname, assignee_lastname, assignee_email, contact_identification, agent_name, agent_email, leader_name, leader_email, contact_province, contact_canton, contact_district, contact_sector, contact_bp_code, contact_code_country, dl_created_at, dl_modified_at, dl_condition)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Moved')
         """
-        cursor.execute(move_query, (old_contact['contact_id'], old_contact['firstname'], old_contact['lastname'], old_contact['phone'], old_contact['email'], old_contact['assignee_id'], old_contact['assignee_firstname'], old_contact['assignee_lastname'], old_contact['assignee_email'], old_contact["contact_identification"], old_contact["agent_name"], old_contact["agent_email"], old_contact['leader_name'], old_contact["leader_email"], old_contact['contact_province'], old_contact['contact_canton'], old_contact['contact_district'], old_contact['contact_sector'], old_contact['contact_bp_code'], old_contact['contact_code_country'], old_contact['dl_created_at'], old_contact['dl_modified_at']))
+        cursor.execute(move_query, (old_contact['contact_id'], old_contact['contact_firstname'], old_contact['contact_lastname'], old_contact['contact_phone'], old_contact['contact_email'], old_contact['assignee_id'], old_contact['assignee_firstname'], old_contact['assignee_lastname'], old_contact['assignee_email'], old_contact["contact_identification"], old_contact["agent_name"], old_contact["agent_email"], old_contact['leader_name'], old_contact["leader_email"], old_contact['contact_province'], old_contact['contact_canton'], old_contact['contact_district'], old_contact['contact_sector'], old_contact['contact_bp_code'], old_contact['contact_code_country'], old_contact['dl_created_at'], old_contact['dl_modified_at']))
         
         # Eliminar el contacto de la tabla respond_io.contacts
         delete_query = "DELETE FROM respond_io.contacts WHERE contact_id = %s"
