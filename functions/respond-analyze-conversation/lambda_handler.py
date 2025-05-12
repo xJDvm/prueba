@@ -23,11 +23,8 @@ def get_conversation_messages(conversation_cod):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     except Exception as e:
         logger.error(f"Error al conectar a la base de datos: {str(e)}")
-        print(json.dumps({'ErrorRespond': str(e), 'ConversationCod': conversation_cod}))
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
-        }
+        print(json.dumps({'ErrorRespond': str(e), 'ConversationCod': conversation_cod, 'DeveloperMessage': 'Error al conectar a la base de datos'}))
+        raise
     
     # Consultar la base de datos
     try:
@@ -43,11 +40,8 @@ def get_conversation_messages(conversation_cod):
         print(messages)
     except Exception as e:
         logger.error(f"Error al ejecutar la consulta: {str(e)}")
-        print(json.dumps({'ErrorRespond': str(e), 'ConversationCod': conversation_cod}))
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
-        }
+        print(json.dumps({'ErrorRespond': str(e), 'ConversationCod': conversation_cod, 'DeveloperMessage': 'Error al ejecutar la consulta de obtención de mensajes'}))
+        raise
     finally:
         cursor.close()
         conn.close()
@@ -142,39 +136,7 @@ def analyze_conversation_with_bedrock(conversation):
     """
     Envía la conversación a Bedrock para su análisis.
     """
-
     try:
-        # Construir el prompt para el análisis
-        """prompt = (
-            "Analiza la conversación entre un cliente y un agente tomando en cuenta los siguientes criterios antes de determinar el nivel de atención del agente:\n"
-            "- Evalúa si el cliente realmente interactuó con el agente antes de concluir que el nivel de atención fue deficiente.\n"
-            "- Si el cliente no respondió o no completó el workflow, no penalices al agente injustamente.\n"
-            "- Calcula correctamente los tiempos de respuesta del agente sin incluir períodos en los que el cliente no interactuó.\n"
-            "- Un tiempo de atención incorrecto se considera solo si la marca del ultimo mensaje enviado por el cliente y la primera respuesta del asesor supera los 30 minutos.\n\n"
-            "Responde únicamente en formato JSON con los siguientes campos:\n"
-            '{\n'
-            '  "cliente_satisfecho": "si | no",\n'
-            '  "motivo_insatisfaccion": "Si el cliente está insatisfecho, indica el motivo; de lo contrario, una cadena vacía.",\n'
-            '  "resumen_conversacion": "Resumen breve de la conversación.",\n'
-            '  "nivel_nps": "Número entero entre 0 y 10 (sin descripciones textuales).",\n'
-            '  "inquietud_resuelta": "si | no",\n'
-            '  "nivel_atencion_agente": "Enum: profesional | poco profesional | grosero | atento | amable",\n'
-            '  "sugerencia_mejora": "Si existe oportunidad de mejora para el agente, proporciona una sugerencia concreta; de lo contrario, una cadena vacía.",\n'
-            '  "puntos_atencion_workflow": "Indica puntos de atención en el workflow basados en los comentarios, si los hubiese; de lo contrario, una cadena vacía.",\n'
-            '  "inconveniente_barrera_idiomatica": "si | no",\n'
-            '  "detalle_barrera_idiomatica": "Si existe barrera idiomática, detalla la dificultad encontrada; de lo contrario, una cadena vacía.",\n'
-            '  "tiempo_atencion_incorrecto": "si | no. Se asigna \'sí\' solo si el tiempo entre el primer mensaje del cliente y la primera respuesta del asesor supera los 30 minutos.",\n'
-            '  "detalle_tiempo_atencion": "Explicación del valor asignado en tiempo_atencion_incorrecto si corresponde; de lo contrario, una cadena vacía.",\n'
-            '  "tiempo_promedio_respuesta_primera_interaccion": "Número en minutos. Calcula el tiempo transcurrido desde el último mensaje del cliente hasta la primera respuesta del asesor.",\n'
-            '  "tiempo_promedio_respuesta": "Número en minutos. Calcula el tiempo promedio de respuesta del asesor sin incluir períodos en los que el cliente no interactúa.",\n'
-            '  "tiempo_total_resolucion": "Número en minutos. Calcula el tiempo total desde el primer mensaje del cliente hasta la resolución de la consulta.",\n'
-            '  "cantidad_interacciones": "Número entero. Cuantifica cuántos mensajes intercambiaron el cliente y el agente antes de llegar a una conclusión.",\n'
-            '  "desviacion_tiempo_respuesta": "Número en minutos. Calcula la desviación estándar de los tiempos de respuesta del asesor para identificar respuestas fuera del promedio.",\n'
-            '  "conversacion_abandonada_cliente": "si | no. Determina si el cliente dejó de interactuar sin cerrar la conversación.",\n'
-            '  "conversacion_abandonada_asesor": "si | no. Determina si el asesor dejó de responder antes de que la consulta fuera resuelta, sin aviso o seguimiento.",\n'
-            '  "analisis_sentimiento_cliente": "Enum: positivo | neutral | negativo. Evalúa el tono del cliente basándose en sus mensajes."\n'
-            '}'
-        )"""
         conn = connect(db_credentials)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cursor.execute("SELECT prompt FROM respond_io.ia_prompts WHERE category = 'analyze_conversation'")
@@ -221,6 +183,117 @@ def analyze_conversation_with_bedrock(conversation):
         logger.error("Error al analizar la conversación con Bedrock: %s", str(e))
         print(json.dumps({'ErrorRespond': str(e), 'Conversation': conversation}))
         raise
+   
+   
+   
+   
+    
+def update_database(conversation_cod, analysis_result):
+    try:
+        # Combinar la respuesta original con el análisis de Bedrock
+        response['analysis'] = analysis_result
+        print(response)
+        # Convertir el análisis a un diccionario de Python
+        analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
+        print(analysis_dict)
+        
+        # Guardar los valores en variables
+        cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
+        motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
+        resumen_conversation = analysis_dict.get('resumen_conversacion')
+        nivel_nps = analysis_dict.get('nivel_nps')
+        inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
+        nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
+        sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
+        puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
+        inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
+        detalle_barrera_idiomatica = analysis_dict.get('detalle_barrera_idiomatica')
+        tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
+        detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
+        tiempo_promedio_respuesta_primera_interaccion = analysis_dict.get('tiempo_promedio_respuesta_primera_interaccion')
+        tiempo_promedio_respuesta = analysis_dict.get('tiempo_promedio_respuesta')
+        tiempo_total_resolucion = analysis_dict.get('tiempo_total_resolucion')
+        cantidad_interacciones = analysis_dict.get('cantidad_interacciones')
+        desviacion_tiempo_respuesta = analysis_dict.get('desviacion_tiempo_respuesta')
+        conversacion_abandonada_cliente = analysis_dict.get('conversacion_abandonada_cliente')
+        conversacion_abandonada_asesor = analysis_dict.get('conversacion_abandonada_asesor')
+        analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
+        
+        # Conectar a la base de datos
+        conn = connect(db_credentials)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        update_query = """
+            UPDATE respond_io.conversation
+            SET customer_satisfaction = %s,
+                dissatisfaction_reason = %s,
+                conversation_summary = %s,
+                nps_level = %s,
+                concern_resolved = %s,
+                agent_attention_level = %s,
+                improvement_suggestion = %s,
+                workflow_attention_points = %s,
+                language_barrier_issue = %s,
+                language_barrier_details = %s,
+                incorrect_response_time = %s,
+                response_time_details = %s,
+                avg_first_response_time = %s,
+                avg_response_time = %s,
+                total_resolution_time = %s,
+                interaction_count = %s,
+                response_time_deviation = %s,
+                abandoned_by_client = %s,
+                abandoned_by_agent = %s,
+                customer_sentiment_analysis = %s
+            WHERE conversation_cod = %s
+        """
+        
+        cursor.execute(update_query, (
+            cliente_satisfecho,
+            motivo_insatisfaccion,
+            resumen_conversation,
+            nivel_nps,
+            inquietud_resuelta,
+            nivel_atencion_agente,
+            sugerencia_mejora,
+            puntos_atencion_workflow,
+            inconveniente_barrera_idiomatica,
+            detalle_barrera_idiomatica,
+            tiempo_atencion_incorrecto,
+            detalle_tiempo_atencion,
+            tiempo_promedio_respuesta_primera_interaccion,
+            tiempo_promedio_respuesta,
+            tiempo_total_resolucion,
+            cantidad_interacciones,
+            desviacion_tiempo_respuesta,
+            conversacion_abandonada_cliente,
+            conversacion_abandonada_asesor,
+            analisis_sentimiento_cliente,
+            conversation_cod
+        ))
+        conn.commit()
+        print("Datos actualizados correctamente en la tabla respond_io.conversation")
+        cursor.close()
+        conn.close()
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json'
+            },
+            'body': json.dumps(response, ensure_ascii=False)
+        }
+        
+    except Exception as e:
+        print(json.dumps({'ErrorRespond': str(e), "ConversationCod": conversation_cod, "DeveloperMessage": "Error al actualizar la base de datos"}))
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
 
 def lambda_handler(event, context):
     for record in event["Records"]:
@@ -242,116 +315,15 @@ def lambda_handler(event, context):
             # Formatear la conversación para Bedrock
             formatted_conversation = format_conversation(response['messages'])
             # Analizar la conversación con Bedrock
-            try:
-                analysis_result = analyze_conversation_with_bedrock(formatted_conversation)
-                
-                # Combinar la respuesta original con el análisis de Bedrock
-                response['analysis'] = analysis_result
-                
-                
-                print(response)
-                # Convertir el análisis a un diccionario de Python
-                analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
-                print(analysis_dict)
-                
-                # Guardar los valores en variables
-                cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
-                motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
-                resumen_conversation = analysis_dict.get('resumen_conversacion')
-                nivel_nps = analysis_dict.get('nivel_nps')
-                inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
-                nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
-                sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
-                puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
-                inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
-                detalle_barrera_idiomatica = analysis_dict.get('detalle_barrera_idiomatica')
-                tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
-                detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
-                tiempo_promedio_respuesta_primera_interaccion = analysis_dict.get('tiempo_promedio_respuesta_primera_interaccion')
-                tiempo_promedio_respuesta = analysis_dict.get('tiempo_promedio_respuesta')
-                tiempo_total_resolucion = analysis_dict.get('tiempo_total_resolucion')
-                cantidad_interacciones = analysis_dict.get('cantidad_interacciones')
-                desviacion_tiempo_respuesta = analysis_dict.get('desviacion_tiempo_respuesta')
-                conversacion_abandonada_cliente = analysis_dict.get('conversacion_abandonada_cliente')
-                conversacion_abandonada_asesor = analysis_dict.get('conversacion_abandonada_asesor')
-                analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
-                
-                # Conectar a la base de datos
-                conn = connect(db_credentials)
-                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-                
-                update_query = """
-                    UPDATE respond_io.conversation
-                    SET customer_satisfaction = %s,
-                        dissatisfaction_reason = %s,
-                        conversation_summary = %s,
-                        nps_level = %s,
-                        concern_resolved = %s,
-                        agent_attention_level = %s,
-                        improvement_suggestion = %s,
-                        workflow_attention_points = %s,
-                        language_barrier_issue = %s,
-                        language_barrier_details = %s,
-                        incorrect_response_time = %s,
-                        response_time_details = %s,
-                        avg_first_response_time = %s,
-                        avg_response_time = %s,
-                        total_resolution_time = %s,
-                        interaction_count = %s,
-                        response_time_deviation = %s,
-                        abandoned_by_client = %s,
-                        abandoned_by_agent = %s,
-                        customer_sentiment_analysis = %s
-                    WHERE conversation_cod = %s
-                """
-                
-                cursor.execute(update_query, (
-                    cliente_satisfecho,
-                    motivo_insatisfaccion,
-                    resumen_conversation,
-                    nivel_nps,
-                    inquietud_resuelta,
-                    nivel_atencion_agente,
-                    sugerencia_mejora,
-                    puntos_atencion_workflow,
-                    inconveniente_barrera_idiomatica,
-                    detalle_barrera_idiomatica,
-                    tiempo_atencion_incorrecto,
-                    detalle_tiempo_atencion,
-                    tiempo_promedio_respuesta_primera_interaccion,
-                    tiempo_promedio_respuesta,
-                    tiempo_total_resolucion,
-                    cantidad_interacciones,
-                    desviacion_tiempo_respuesta,
-                    conversacion_abandonada_cliente,
-                    conversacion_abandonada_asesor,
-                    analisis_sentimiento_cliente,
-                    conversation_cod
-                ))
-                conn.commit()
-                print("Datos actualizados correctamente en la tabla respond_io.conversation")
-                cursor.close()
-                conn.close()
-                
-                
-                return {
-                    'statusCode': 200,
-                    'headers': {
-                        'Content-Type': 'application/json'
-                    },
-                    'body': json.dumps(response, ensure_ascii=False)
-                }
-                
-            except Exception as e:
-                print('Error procesando el mensaje')
-                print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
-                continue
-
+            analysis_result = analyze_conversation_with_bedrock(formatted_conversation)
+            
+            update_database(conversation_cod, analysis_result)
+            print(json.dumps({'Success': 'Conversation analyzed and updated successfully', 'ConversationCod': conversation_cod}))
     
         except Exception as e:
-            print(f"Error al analizar la conversación: {str(e)}")
-            print(json.dumps({'ErrorRespond': str(e)}))
-            return {
-                'statusCode': 500,
-                'body': json.dumps({'error': str(e)})
-            }
+            print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+            batch_item_failures.append({"itemIdentifier": record['messageId']})
+            continue
+    return {
+        'batchItemFailures': batch_item_failures
+    }
