@@ -223,225 +223,135 @@ def analyze_conversation_with_bedrock(conversation):
         raise
 
 def lambda_handler(event, context):
-    # Obtener el código de conversación del evento
-    conversation_cod = event.get('conversation_cod')
+    for record in event["Records"]:
+        try:
+            body = json.loads(record["body"])
+            conversation_cod = json.loads(body["conversation_cod"])
+            
+            if not conversation_cod:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'conversation_cod is required'})
+                }
+            # Obtener los mensajes de la conversación
+            response = get_conversation_messages(conversation_cod)
+            # Verificar si hubo un error al obtener los mensajes
+            if 'statusCode' in response and response['statusCode'] != 200:
+                return response
+
+            # Formatear la conversación para Bedrock
+            formatted_conversation = format_conversation(response['messages'])
+            # Analizar la conversación con Bedrock
+            try:
+                analysis_result = analyze_conversation_with_bedrock(formatted_conversation)
+                
+                # Combinar la respuesta original con el análisis de Bedrock
+                response['analysis'] = analysis_result
+                
+                
+                print(response)
+                # Convertir el análisis a un diccionario de Python
+                analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
+                print(analysis_dict)
+                
+                # Guardar los valores en variables
+                cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
+                motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
+                resumen_conversation = analysis_dict.get('resumen_conversacion')
+                nivel_nps = analysis_dict.get('nivel_nps')
+                inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
+                nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
+                sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
+                puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
+                inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
+                detalle_barrera_idiomatica = analysis_dict.get('detalle_barrera_idiomatica')
+                tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
+                detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
+                tiempo_promedio_respuesta_primera_interaccion = analysis_dict.get('tiempo_promedio_respuesta_primera_interaccion')
+                tiempo_promedio_respuesta = analysis_dict.get('tiempo_promedio_respuesta')
+                tiempo_total_resolucion = analysis_dict.get('tiempo_total_resolucion')
+                cantidad_interacciones = analysis_dict.get('cantidad_interacciones')
+                desviacion_tiempo_respuesta = analysis_dict.get('desviacion_tiempo_respuesta')
+                conversacion_abandonada_cliente = analysis_dict.get('conversacion_abandonada_cliente')
+                conversacion_abandonada_asesor = analysis_dict.get('conversacion_abandonada_asesor')
+                analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
+                
+                # Conectar a la base de datos
+                conn = connect(db_credentials)
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                
+                update_query = """
+                    UPDATE respond_io.conversation
+                    SET customer_satisfaction = %s,
+                        dissatisfaction_reason = %s,
+                        conversation_summary = %s,
+                        nps_level = %s,
+                        concern_resolved = %s,
+                        agent_attention_level = %s,
+                        improvement_suggestion = %s,
+                        workflow_attention_points = %s,
+                        language_barrier_issue = %s,
+                        language_barrier_details = %s,
+                        incorrect_response_time = %s,
+                        response_time_details = %s,
+                        avg_first_response_time = %s,
+                        avg_response_time = %s,
+                        total_resolution_time = %s,
+                        interaction_count = %s,
+                        response_time_deviation = %s,
+                        abandoned_by_client = %s,
+                        abandoned_by_agent = %s,
+                        customer_sentiment_analysis = %s
+                    WHERE conversation_cod = %s
+                """
+                
+                cursor.execute(update_query, (
+                    cliente_satisfecho,
+                    motivo_insatisfaccion,
+                    resumen_conversation,
+                    nivel_nps,
+                    inquietud_resuelta,
+                    nivel_atencion_agente,
+                    sugerencia_mejora,
+                    puntos_atencion_workflow,
+                    inconveniente_barrera_idiomatica,
+                    detalle_barrera_idiomatica,
+                    tiempo_atencion_incorrecto,
+                    detalle_tiempo_atencion,
+                    tiempo_promedio_respuesta_primera_interaccion,
+                    tiempo_promedio_respuesta,
+                    tiempo_total_resolucion,
+                    cantidad_interacciones,
+                    desviacion_tiempo_respuesta,
+                    conversacion_abandonada_cliente,
+                    conversacion_abandonada_asesor,
+                    analisis_sentimiento_cliente,
+                    conversation_cod
+                ))
+                conn.commit()
+                print("Datos actualizados correctamente en la tabla respond_io.conversation")
+                cursor.close()
+                conn.close()
+                
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'application/json'
+                    },
+                    'body': json.dumps(response, ensure_ascii=False)
+                }
+                
+            except Exception as e:
+                print('Error procesando el mensaje')
+                print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
+                continue
+
     
-    if not conversation_cod:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'conversation_cod is required'})
-        }
-    
-    # Obtener los mensajes de la conversación
-    response = get_conversation_messages(conversation_cod)
-    
-    # Verificar si hubo un error al obtener los mensajes
-    if 'statusCode' in response and response['statusCode'] != 200:
-        return response
-    
-    
-    
-    # Formatear la conversación para Bedrock
-    formatted_conversation = format_conversation(response['messages'])
-    
-    # Analizar la conversación con Bedrock
-    try:
-        analysis_result = analyze_conversation_with_bedrock(formatted_conversation)
-        
-        # Combinar la respuesta original con el análisis de Bedrock
-        response['analysis'] = analysis_result
-        
-        
-        print(response)
-        # Convertir el análisis a un diccionario de Python
-        analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
-        print(analysis_dict)
-        
-        # Guardar los valores en variables
-        cliente_satisfecho = analysis_dict.get('cliente_satisfecho')
-        motivo_insatisfaccion = analysis_dict.get('motivo_insatisfaccion')
-        resumen_conversation = analysis_dict.get('resumen_conversacion')
-        nivel_nps = analysis_dict.get('nivel_nps')
-        inquietud_resuelta = analysis_dict.get('inquietud_resuelta')
-        nivel_atencion_agente = analysis_dict.get('nivel_atencion_agente')
-        sugerencia_mejora = analysis_dict.get('sugerencia_mejora')
-        puntos_atencion_workflow = analysis_dict.get('puntos_atencion_workflow')
-        inconveniente_barrera_idiomatica = analysis_dict.get('inconveniente_barrera_idiomatica')
-        detalle_barrera_idiomatica = analysis_dict.get('detalle_barrera_idiomatica')
-        tiempo_atencion_incorrecto = analysis_dict.get('tiempo_atencion_incorrecto')
-        detalle_tiempo_atencion = analysis_dict.get('detalle_tiempo_atencion')
-        tiempo_promedio_respuesta_primera_interaccion = analysis_dict.get('tiempo_promedio_respuesta_primera_interaccion')
-        tiempo_promedio_respuesta = analysis_dict.get('tiempo_promedio_respuesta')
-        tiempo_total_resolucion = analysis_dict.get('tiempo_total_resolucion')
-        cantidad_interacciones = analysis_dict.get('cantidad_interacciones')
-        desviacion_tiempo_respuesta = analysis_dict.get('desviacion_tiempo_respuesta')
-        conversacion_abandonada_cliente = analysis_dict.get('conversacion_abandonada_cliente')
-        conversacion_abandonada_asesor = analysis_dict.get('conversacion_abandonada_asesor')
-        analisis_sentimiento_cliente = analysis_dict.get('analisis_sentimiento_cliente')
-        
-        # Conectar a la base de datos
-        conn = connect(db_credentials)
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        update_query = """
-            UPDATE respond_io.conversation
-            SET customer_satisfaction = %s,
-                dissatisfaction_reason = %s,
-                conversation_summary = %s,
-                nps_level = %s,
-                concern_resolved = %s,
-                agent_attention_level = %s,
-                improvement_suggestion = %s,
-                workflow_attention_points = %s,
-                language_barrier_issue = %s,
-                language_barrier_details = %s,
-                incorrect_response_time = %s,
-                response_time_details = %s,
-                avg_first_response_time = %s,
-                avg_response_time = %s,
-                total_resolution_time = %s,
-                interaction_count = %s,
-                response_time_deviation = %s,
-                abandoned_by_client = %s,
-                abandoned_by_agent = %s,
-                customer_sentiment_analysis = %s
-            WHERE conversation_cod = %s
-        """
-        
-        cursor.execute(update_query, (
-            cliente_satisfecho,
-            motivo_insatisfaccion,
-            resumen_conversation,
-            nivel_nps,
-            inquietud_resuelta,
-            nivel_atencion_agente,
-            sugerencia_mejora,
-            puntos_atencion_workflow,
-            inconveniente_barrera_idiomatica,
-            detalle_barrera_idiomatica,
-            tiempo_atencion_incorrecto,
-            detalle_tiempo_atencion,
-            tiempo_promedio_respuesta_primera_interaccion,
-            tiempo_promedio_respuesta,
-            tiempo_total_resolucion,
-            cantidad_interacciones,
-            desviacion_tiempo_respuesta,
-            conversacion_abandonada_cliente,
-            conversacion_abandonada_asesor,
-            analisis_sentimiento_cliente,
-            conversation_cod
-        ))
-        conn.commit()
-        print("Datos actualizados correctamente en la tabla respond_io.conversation")
-        cursor.close()
-        conn.close()
-        
-        
-        # Enviar un correo electrónico con el análisis
-        recipient = ['jvaldes@intelix.biz']
-        cc=['projas@intelix.biz']
-        subject = "Respond.io | Analisis conversacion"
-        body_text = "Respond.io | Analisis Conversacion"
-        body_html = f"""
-            <html>
-            <head>
-                <title>Respond.io | Análisis de Conversación</title>
-                <style>
-                    body {{
-                        font-family: Arial, sans-serif;
-                        color: #333333;
-                        backgrsound-color: #f4f4f4;
-                        margin: 0;
-                        padding: 20px;
-                    }}
-                    .container {{
-                        background-color: #ffffff;
-                        padding: 20px;
-                        border-radius: 8px;
-                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                    }}
-                    h1 {{
-                        color: #3d85c6;
-                    }}
-                    h2 {{
-                        color: #333333;
-                        border-bottom: 2px solid #3d85c6;
-                        padding-bottom: 5px;
-                    }}
-                    p {{
-                        font-size: 14px;
-                    }}
-                    .message {{
-                        margin-bottom: 10px;
-                        padding: 10px;
-                        border-radius: 5px;
-                    }}
-                    .agent {{
-                        background-color: #e7f3fe;
-                        border-left: 5px solid #3d85c6;
-                    }}
-                    .client {{
-                        background-color: #f9f9f9;
-                        border-left: 5px solid #333333;
-                    }}
-                    .analysis {{
-                        background-color: #f1f1f1;
-                        padding: 10px;
-                        border-radius: 5px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Respond.io | Análisis de Conversación</h1>
-                    <p><strong>Código de Conversación:</strong> {response['conversation_cod']}</p>
-                    <p><strong>ID de Contacto:</strong> {response['contact_id']}</p>
-                    <h2>Mensajes:</h2>
-                    <ul>
-                        {''.join(f"<li class='message {'agent' if msg['message']['type'] == 'message.sent' else 'client'}'><strong>{msg['message']['timestamp']} - {msg['assigned_user_id']}:</strong> {msg['message']['content']}</li>" for msg in response['messages'])}
-                    </ul>
-                    <h2>Análisis:</h2>
-                    <div class="analysis">
-                        <p><strong>Cliente Satisfecho:</strong> {response['analysis']['cliente_satisfecho']}</p>
-                        <p><strong>Motivo de Insatisfacción:</strong> {response['analysis']['motivo_insatisfaccion']}</p>
-                        <p><strong>Resumen de la Conversación:</strong> {response['analysis']['resumen_conversacion']}</p>
-                        <p><strong>Nivel NPS:</strong> {response['analysis']['nivel_nps']}</p>
-                        <p><strong>Inquietud Resuelta:</strong> {response['analysis']['inquietud_resuelta']}</p>
-                        <p><strong>Nivel de Atención del Agente:</strong> {response['analysis']['nivel_atencion_agente']}</p>
-                        <p><strong>Sugerencia de Mejora:</strong> {response['analysis']['sugerencia_mejora']}</p>
-                        <p><strong>Puntos de Atención en el Workflow:</strong> {response['analysis']['puntos_atencion_workflow']}</p>
-                        <p><strong>Inconveniente por Barrera Idiomática:</strong> {response['analysis']['inconveniente_barrera_idiomatica']}</p>
-                        <p><strong>Detalle de la Barrera Idiomática:</strong> {response['analysis']['detalle_barrera_idiomatica']}</p>
-                        <p><strong>Tiempo de Atención Incorrecto:</strong> {response['analysis']['tiempo_atencion_incorrecto']}</p>
-                        <p><strong>Detalle del Tiempo de Atención:</strong> {response['analysis']['detalle_tiempo_atencion']}</p>
-                        <p><strong>Tiempo Promedio de Respuesta en la Primera Interacción:</strong> {response['analysis']['tiempo_promedio_respuesta_primera_interaccion']}</p>
-                        <p><strong>Tiempo Promedio de Respuesta:</strong> {response['analysis']['tiempo_promedio_respuesta']}</p>
-                        <p><strong>Tiempo Total de Resolución:</strong> {response['analysis']['tiempo_total_resolucion']}</p>
-                        <p><strong>Cantidad de Interacciones:</strong> {response['analysis']['cantidad_interacciones']}</p>
-                        <p><strong>Desviación del Tiempo de Respuesta:</strong> {response['analysis']['desviacion_tiempo_respuesta']}</p>
-                        <p><strong>Conversación Abandonada por el Cliente:</strong> {response['analysis']['conversacion_abandonada_cliente']}</p>
-                        <p><strong>Conversación Abandonada por el Asesor:</strong> {response['analysis']['conversacion_abandonada_asesor']}</p>
-                        <p><strong>Análisis de Sentimiento del Cliente:</strong> {response['analysis']['analisis_sentimiento_cliente']}</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        """
-        
-        # send_email(recipient, subject, body_text, body_html, cc)
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps(response, ensure_ascii=False)
-        }
-    
-    except Exception as e:
-        print(f"Error al analizar la conversación: {str(e)}")
-        print(json.dumps({'ErrorRespond': str(e)}))
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': str(e)})
-        }
+        except Exception as e:
+            print(f"Error al analizar la conversación: {str(e)}")
+            print(json.dumps({'ErrorRespond': str(e)}))
+            return {
+                'statusCode': 500,
+                'body': json.dumps({'error': str(e)})
+            }

@@ -759,7 +759,14 @@ Resources:
       Topics:
         - !Ref RespondSNSGlobal
         
-
+  RespondAnalyzeConversationSQS:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-RespondAnalyzeConversationSQS
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt respondSqsDLQ.Arn
+        maxReceiveCount: 5
 
 
 
@@ -1132,6 +1139,9 @@ Resources:
             - Effect: Allow
               Action: lambda:InvokeFunction
               Resource: !GetAtt AnalyzeConversationFunction.Arn
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt RespondAnalyzeConversationSQS.Arn
       Events:
         SQSQueueEvent:
           Type: SQS
@@ -1143,6 +1153,7 @@ Resources:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
           ANALYZE_CONVERSATION_FUNCTION_NAME: !Ref AnalyzeConversationFunction
+          RESPOND_ANALYZE_CONVERSATION_SQS: !Ref RespondAnalyzeConversationSQS
 
   ConversationClosedLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1174,6 +1185,13 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource: "arn:aws:bedrock:us-east-1:960233350828:inference-profile/us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      Events:
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt RespondAnalyzeConversationSQS.Arn
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
       Environment:
         Variables:
           secretRespondIO: !Ref SecretCommonPostgresTempFC
@@ -1272,6 +1290,9 @@ Resources:
             - Effect: Allow
               Action: lambda:InvokeFunction
               Resource: !GetAtt AnalyzeConversationFunction.Arn
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt RespondAnalyzeConversationSQS.Arn
       Events: ## Evento programado para ejecutar a las 4 am
         ScheduleEvent:
           Type: Schedule
@@ -1285,6 +1306,7 @@ Resources:
           RESPOND_API_TOKEN: !Ref RespondApiTokenParameter
           RESPOND_CONFIG_PARAMETER: !Ref RespondConfigParameter
           ANALYZE_CONVERSATION_FUNCTION_NAME: !Ref AnalyzeConversationFunction
+          RESPOND_ANALYZE_CONVERSATION_SQS: !Ref RespondAnalyzeConversationSQS
 
 
   CloseAllConversationsLogGroup:

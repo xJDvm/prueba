@@ -9,19 +9,28 @@ from respond_dbconnection.secretManager import get_database_credentials
 db_credentials = get_database_credentials()
 
 def invoke_analyze_conversation(conversation_cod):
-    analyze_conversation_function_name = os.environ['ANALYZE_CONVERSATION_FUNCTION_NAME']
-    lambda_client = boto3.client('lambda')
+    # analyze_conversation_function_name = os.environ['ANALYZE_CONVERSATION_FUNCTION_NAME']
+    # lambda_client = boto3.client('lambda')
     
-    payload = {
+    # payload = {
+    #     "conversation_cod": conversation_cod
+    # }
+    
+    # lambda_client.invoke(
+    #     FunctionName=analyze_conversation_function_name,
+    #     InvocationType='RequestResponse',
+    #     Payload=json.dumps(payload)
+    # )
+    sqs = boto3.client('sqs')
+    queue_url = os.environ['RESPOND_ANALYZE_CONVERSATION_SQS']
+    message = {
         "conversation_cod": conversation_cod
     }
-    
-    lambda_client.invoke(
-        FunctionName=analyze_conversation_function_name,
-        InvocationType='RequestResponse',
-        Payload=json.dumps(payload)
+
+    response = sqs.send_message(
+        QueueUrl=queue_url,
+        MessageBody=message
     )
-    
 
 
 def handle_close_conversation(data):
