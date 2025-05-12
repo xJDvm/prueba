@@ -49,7 +49,7 @@ def is_within_business_hours(timestamp):
 def handle_text_message(data):
     contact_id = data["contact"]["id"]
     assigned_user_id = data["contact"]["assignee"]["id"]
-    message_id = data["message"]["messageId"]
+    message_id = str(data["message"]["messageId"]) + str(contact_id)
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
     message_text = data["message"]["message"]["text"]
@@ -89,7 +89,7 @@ def handle_text_message(data):
 def handle_attachment_message(data):
     contact_id = data["contact"]["id"]
     assigned_user_id = data["contact"]["assignee"]["id"]
-    message_id = data["message"]["messageId"]
+    message_id = str(data["message"]["messageId"]) + str(contact_id)
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
@@ -133,7 +133,7 @@ def handle_attachment_message(data):
 def handle_location_message(data):
     contact_id = data["contact"]["id"]
     assigned_user_id = data["contact"]["assignee"]["id"]
-    message_id = data["message"]["messageId"]
+    message_id = str(data["message"]["messageId"]) + str(contact_id)
     message_classification = data["message"]["message"]["type"]
     timestamp = data["message"]["timestamp"]
     channel_id = data["channel"]["id"]
@@ -174,7 +174,7 @@ def handle_location_message(data):
 def handle_email_message(data):
     contact_id = data["contact"]["id"]
     assigned_user_id = data["contact"]["assignee"]["id"]
-    message_id = data["message"]["messageId"]
+    message_id = str(data["message"]["messageId"]) + str(contact_id)
     message_classification = data["message"]["message"]["type"]
     message_subject = data["message"]["message"]["subject"]
     timestamp = data["message"]["timestamp"]

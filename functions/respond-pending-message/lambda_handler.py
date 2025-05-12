@@ -25,8 +25,10 @@ def lambda_handler(event, context):
 
         conversation_query = """
             SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min,
-                    ct.client_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.asesor_email, ct.assignee_email, ct.lider_email, 
-                    ct.firstname || ' ' || ct.lastname as full_name
+                    ct.contact_identification, 
+                    ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, 
+                    ct.agent_email, ct.assignee_email, ct.leader_email, 
+                    ct.contact_firstname || ' ' || COALESCE(ct.contact_lastname, '') as full_name
             FROM respond_io.conversation c
             JOIN respond_io.contacts ct ON c.contact_id = ct.contact_id
             WHERE c.conversation_status = 'open'
@@ -48,12 +50,12 @@ def lambda_handler(event, context):
                 
                 last_hour = time_last_mess_out if time_last_mess_out else 'No hay mensajes salientes'
 
-                client_identification = conversation['client_identification'] if conversation['client_identification'] else 'Sin cédula'
+                contact_identification = conversation['contact_identification'] if conversation['contact_identification'] else 'Sin cédula'
                 assignee_name = conversation['assignee_name'] if conversation['assignee_name'] else 'Equipo de Respond.io'
                 full_name = conversation['full_name']
                 
                 assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else backup_email
-                lider_email = conversation['lider_email'] if conversation['lider_email'] else None
+                leader_email = conversation['leader_email'] if conversation['leader_email'] else None
                 
                 bcc = support_emails
                 
@@ -65,10 +67,10 @@ def lambda_handler(event, context):
                 
                 if time_since_last_in >= first_time_notification and not responded_after_client and not mark_30min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (30 min) - {full_name}"
-                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
+                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     
                     try:
-                        send_email([assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
+                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
@@ -76,10 +78,10 @@ def lambda_handler(event, context):
 
                 elif time_since_last_in >= second_time_notification and not responded_after_client and not mark_60min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (60 min) - {full_name}"
-                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, client_identification, last_hour)
+                    body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     
                     try:
-                        send_email([assignee_email], subject, subject, body_html, [lider_email] if lider_email else None, bcc)
+                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_60min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         print(f"Correo de 60 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
