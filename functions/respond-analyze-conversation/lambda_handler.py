@@ -226,7 +226,7 @@ def lambda_handler(event, context):
     for record in event["Records"]:
         try:
             body = json.loads(record["body"])
-            conversation_cod = json.loads(body["conversation_cod"])
+            conversation_cod = str(json.loads(body["conversation_cod"]))            
             
             if not conversation_cod:
                 return {

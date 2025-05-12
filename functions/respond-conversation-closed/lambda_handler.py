@@ -29,7 +29,7 @@ def invoke_analyze_conversation(conversation_cod):
 
     response = sqs.send_message(
         QueueUrl=queue_url,
-        MessageBody=message
+        MessageBody=json.dumps(message)  # Aquí se convierte el diccionario a JSON
     )
 
 
