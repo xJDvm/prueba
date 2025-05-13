@@ -21,6 +21,9 @@ event_log = {
     "event_data": {
         "conversations": [],
         "message_time": "",
+        "mark_30min": "",
+        "mark_60min": "",
+        "contact_identification": "",
     },
     "querys": {
         "conversation_query": ""
@@ -49,7 +52,6 @@ def lambda_handler(event, context):
         
         event_log["querys"]["conversation_query"] = conversation_query
         event_log["event_data"]["conversations"] = conversations
-        event_log["event_data"]["message_time"] = str(message_time)
 
         for conversation in conversations:
             try:
@@ -62,6 +64,11 @@ def lambda_handler(event, context):
                 time_last_mess_out = conversation['time_last_mess_out'] if conversation['time_last_mess_out'] else None
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']
+                
+                event_log["event_data"]["contact_identification"] = conversation['contact_identification']
+                event_log["event_data"]["mark_30min"] = mark_30min
+                event_log["event_data"]["mark_60min"] = mark_60min
+                event_log["event_data"]["message_time"] = str(message_time)
                 
                 
                 print(f"Tiempo de la última conversación: {time_last_mess_in}")
@@ -93,8 +100,8 @@ def lambda_handler(event, context):
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     
                     try:
-                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
+                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
@@ -110,13 +117,15 @@ def lambda_handler(event, context):
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
                         
+                print(json.dumps({'EventLog': event_log}))
+                        
             except Exception as e:
                 print(f'ERROR: {e}')
                 print(json.dumps({'ErrorRespond': str(e), 'Conversation': conversation}))
 
         conn.commit()
         cursor.close()
-        print(json.dumps({'EventLog': event_log}))
+
 
     except Exception as e:
         print(f'ERROR: {e}')
