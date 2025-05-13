@@ -188,13 +188,13 @@ def analyze_conversation_with_bedrock(conversation):
    
    
     
-def update_database(conversation_cod, analysis_result):
+def update_database(conversation_cod, analysis_result, conversation_data):
     try:
         # Combinar la respuesta original con el análisis de Bedrock
-        response['analysis'] = analysis_result
-        print(response)
+        conversation_data['analysis'] = analysis_result
+        print(conversation_data)
         # Convertir el análisis a un diccionario de Python
-        analysis_dict = response['analysis'] if isinstance(response['analysis'], dict) else json.loads(response['analysis'])
+        analysis_dict = conversation_data['analysis'] if isinstance(conversation_data['analysis'], dict) else json.loads(conversation_data['analysis'])
         print(analysis_dict)
         
         # Guardar los valores en variables
@@ -280,22 +280,20 @@ def update_database(conversation_cod, analysis_result):
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json'
-            },
-            'body': json.dumps(response, ensure_ascii=False)
+            }        
         }
         
     except Exception as e:
         print(json.dumps({'ErrorRespond': str(e), "ConversationCod": conversation_cod, "DeveloperMessage": "Error al actualizar la base de datos"}))
         raise
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 
 
 def lambda_handler(event, context):
+    batch_item_failures = []
     for record in event["Records"]:
         try:
             body = json.loads(record["body"])
@@ -307,17 +305,18 @@ def lambda_handler(event, context):
                     'body': json.dumps({'error': 'conversation_cod is required'})
                 }
             # Obtener los mensajes de la conversación
-            response = get_conversation_messages(conversation_cod)
+            conversation_data = get_conversation_messages(conversation_cod)
             # Verificar si hubo un error al obtener los mensajes
-            if 'statusCode' in response and response['statusCode'] != 200:
-                return response
+            if 'statusCode' in conversation_data and conversation_data['statusCode'] != 200:
+                return conversation_data
 
             # Formatear la conversación para Bedrock
-            formatted_conversation = format_conversation(response['messages'])
+            formatted_conversation = format_conversation(conversation_data['messages'])
             # Analizar la conversación con Bedrock
-            analysis_result = analyze_conversation_with_bedrock(formatted_conversation)
+            analysis_result = analyze_conversation_with_bedrock(formatted_conversation)   
+            # Actualizar la base de datos con los resultados del análisis
+            update_database(conversation_cod, analysis_result, conversation_data)
             
-            update_database(conversation_cod, analysis_result)
             print(json.dumps({'Success': 'Conversation analyzed and updated successfully', 'ConversationCod': conversation_cod}))
     
         except Exception as e:
