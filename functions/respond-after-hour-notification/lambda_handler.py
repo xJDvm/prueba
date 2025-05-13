@@ -50,12 +50,14 @@ def get_photos_after_time(conn, current_time, contact_id):
         costa_rica_tz = timezone(timedelta(hours=-6))  # Costa Rica está en UTC-6
         current_time_dt = current_time_dt.replace(tzinfo=costa_rica_tz)
         current_time_utc = current_time_dt.astimezone(timezone.utc)
-        ten_minutes_after = current_time_utc - timedelta(minutes=1)
+        minutes_after = current_time_utc - timedelta(minutes=after_hour_notification_minutes)
+        
+        print(f"Ten minutes after: {minutes_after}")
         
         select_query = "SELECT message_url FROM respond_io.messages WHERE message_type = 'message.received' AND message_datatype = 'image' AND message_timestamp > %s AND contact_id = %s"
         
-        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
-        cursor.execute(select_query, (ten_minutes_after, contact_id))
+        print(cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8'))
+        cursor.execute(select_query, (minutes_after, contact_id))
         rows = cursor.fetchall()
         
         print(f"Fotos encontradas: {rows}")
@@ -63,6 +65,7 @@ def get_photos_after_time(conn, current_time, contact_id):
         photos = [row['message_url'] for row in rows]
         photos_array = ",".join(photos)
         
+        conn.commit()
         cursor.close()
         return photos_array
 
@@ -82,26 +85,22 @@ def get_messages_after_time(conn, current_time, contact_id):
         # Convertir la hora a UTC
         current_time_utc = current_time_dt.astimezone(timezone.utc)
 
-        # Restar 1 minuto para calcular ten_minutes_after
-        ten_minutes_after = current_time_utc - timedelta(minutes=1)
+        # Restar 1 minuto para calcular minutes_after
+        minutes_after = current_time_utc - timedelta(minutes=after_hour_notification_minutes)
         
-
+        print(f"Ten minutes after: {minutes_after}")
+        
         select_query = """
-        SELECT message_text 
-        FROM respond_io.messages 
-        WHERE message_type = 'message.received' 
-        AND message_classification = 'text' 
-        AND message_timestamp > %s
-        AND contact_id = %s
-        ORDER BY message_timestamp ASC
+            SELECT message_text FROM respond_io.messages WHERE message_type = 'message.received' AND message_classification = 'text' AND message_timestamp > %s AND contact_id = %s ORDER BY message_timestamp ASC
         """
             
-        print(cursor.mogrify(select_query, (ten_minutes_after, contact_id)).decode('utf-8'))
-        cursor.execute(select_query, (ten_minutes_after, contact_id))
+        print(cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8'))
+        cursor.execute(select_query, (minutes_after, contact_id))
         rows = cursor.fetchall()
         
         print(f"Mensajes encontrados: {rows}")
         
+        conn.commit()
         messages = [row['message_text'] for row in rows]
         messages_array = " - ".join(messages)
         

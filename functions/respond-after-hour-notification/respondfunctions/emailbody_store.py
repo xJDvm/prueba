@@ -22,7 +22,7 @@ def build_html_store(e):
         photos_html = ""
         image_adviser = f'''
             <span style="background:transparent">
-                En caso de cualquier inconveniente por favor contactar a soporte <br>.
+                En caso de cualquier inconveniente por favor contactar a soporte. <br>
                 <a href="https://app.respond.io/space/{respond_space}/inbox/{client_id}" style="text-decoration:underline;color:#0b5394;">Abrir conversación</a>
             </span>
         '''
