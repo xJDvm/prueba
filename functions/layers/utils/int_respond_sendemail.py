@@ -37,7 +37,6 @@ def send_email(recipients, subject, body_text, body_html, cc_addresses=None, bcc
 
     try:
         response = ses_client.send_email(**email_message)
-        print("Email sent! Message ID:"),
-        print(response['MessageId'])
+        print("Email sent! Message ID:", response['MessageId']),
     except ClientError as e:
         print("Error sending email: ", e.response['Error']['Message'])

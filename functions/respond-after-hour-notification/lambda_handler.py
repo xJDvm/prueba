@@ -17,6 +17,23 @@ support_emails = respond_config["supportEmails"]
 
 db_credentials = get_database_credentials()
 
+event_log = {
+    "event_log": "respond_after_hour_notification",
+    "event_data": {
+        "data": {},
+        "store_emails": [],
+        "messages": [],
+        "photos": [],
+        "current_time": "",
+        "minutes_after": ""
+    },
+    "querys": {
+        "get_contact_info_query": "",
+        "get_photos_after_time": "",
+        "get_messages_after_time": ""
+    }
+}
+
 def is_valid_email(email):
     regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
     return re.match(regex, email) is not None
@@ -26,16 +43,26 @@ def get_contact_info(store, conn):
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Obtener store_emails
-        print(cursor.mogrify("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,)).decode('utf-8'))
-        cursor.execute("SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')", (store,))
-        store_emails = [row['email'] for row in cursor.fetchall()]
         
-        print(f"store_emails: {store_emails}")
+        get_contact_info_query = "SELECT email FROM respond_io.store_notifications WHERE store_name = %s AND team in ('Ventas Empresas', 'Cotizaciones')"        
+        cursor.execute(get_contact_info_query, (store,))
+        rows = cursor.fetchall()  # Guardar los resultados en una variable
         
+        if not rows:
+            print(f"No se encontraron correos para la tienda: {store}")
+            store_emails = []
+        else:
+            print(f"Correos encontrados para la tienda {store}: {rows}")
+            # Obtener los correos electrónicos de los resultados
+            store_emails = [row['email'] for row in rows]  # Procesar los resultados correctamente
+
+        event_log["event_data"]["store_emails"] = store_emails
+        event_log["querys"]["get_contact_info_query"] = cursor.mogrify(get_contact_info_query, (store,)).decode('utf-8')
+
+        conn.commit()
         cursor.close()
     except psycopg2.Error as e:
-        print(f"Database error: {e}")
+        print(json.dumps({'ErrorRespond': str(e), 'DeveloperMessage': 'Error al obtener información del contacto', 'Store': store}))
         store_emails = []
     
     return json.dumps({"store_emails": store_emails})
@@ -52,25 +79,28 @@ def get_photos_after_time(conn, current_time, contact_id):
         current_time_utc = current_time_dt.astimezone(timezone.utc)
         minutes_after = current_time_utc - timedelta(minutes=after_hour_notification_minutes)
         
-        print(f"Ten minutes after: {minutes_after}")
         
         select_query = "SELECT message_url FROM respond_io.messages WHERE message_type = 'message.received' AND message_datatype = 'image' AND message_timestamp > %s AND contact_id = %s"
         
-        print(cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (minutes_after, contact_id))
         rows = cursor.fetchall()
         
-        print(f"Fotos encontradas: {rows}")
         
         photos = [row['message_url'] for row in rows]
         photos_array = ",".join(photos)
+        
+        event_log["event_data"]["photos"] = photos
+        event_log["querys"]["get_photos_after_time"] = cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8')
+        event_log["event_data"]["current_time"] = current_time
+        event_log["event_data"]["minutes_after"] = minutes_after.isoformat()
+
         
         conn.commit()
         cursor.close()
         return photos_array
 
     except Exception as e:
-        print(json.dumps({'ErrorRespond': str(e), "ContactId": contact_id}))
+        print(json.dumps({'ErrorRespond': str(e), "DeveloperMessage": 'Error al obtener fotos', "ContactId": contact_id}))
         return ""
 
 def get_messages_after_time(conn, current_time, contact_id):
@@ -87,18 +117,16 @@ def get_messages_after_time(conn, current_time, contact_id):
 
         # Restar 1 minuto para calcular minutes_after
         minutes_after = current_time_utc - timedelta(minutes=after_hour_notification_minutes)
-        
-        print(f"Ten minutes after: {minutes_after}")
-        
-        select_query = """
-            SELECT message_text FROM respond_io.messages WHERE message_type = 'message.received' AND message_classification = 'text' AND message_timestamp > %s AND contact_id = %s ORDER BY message_timestamp ASC
-        """
+                
+        select_query = "SELECT message_text FROM respond_io.messages WHERE message_type = 'message.received' AND message_classification = 'text' AND message_timestamp > %s AND contact_id = %s ORDER BY message_timestamp ASC"
             
-        print(cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8'))
         cursor.execute(select_query, (minutes_after, contact_id))
         rows = cursor.fetchall()
         
-        print(f"Mensajes encontrados: {rows}")
+
+        
+        event_log["event_data"]["messages"] = rows
+        event_log["querys"]["get_messages_after_time"] = cursor.mogrify(select_query, (minutes_after, contact_id)).decode('utf-8')
         
         conn.commit()
         messages = [row['message_text'] for row in rows]
@@ -108,7 +136,7 @@ def get_messages_after_time(conn, current_time, contact_id):
         return messages_array
 
     except Exception as e:
-        print(json.dumps({'ErrorRespond': str(e), "ContactId": contact_id}))
+        print(json.dumps({'ErrorRespond': str(e), "DeveloperMessage": "Error al obtener mensajes","ContactId": contact_id}))
         return ""
 
 
@@ -119,14 +147,14 @@ def lambda_handler(event, context):
 
     for record in event["Records"]: 
         try:
+            print(json.dumps({'Record': record}))
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
             data = message
             contact_name = data["firstName"] + " " + data["lastName"]
             contact_id = data["id"]
-
-            print(data)
             
+            event_log["event_data"]["data"] = data            
             # Verificar si el dato 'store' está presente en el cuerpo del mensaje
             if 'store' in data:
                 
@@ -154,8 +182,6 @@ def lambda_handler(event, context):
                 
                 lider_email = data["lider_email"] if data["lider_email"] else backup_email
                 
-                print(data)
-                
                 
                 
                 
@@ -173,11 +199,10 @@ def lambda_handler(event, context):
                 
                 body = build_html_store(e)
                 
-                print(f"recipient: ", store_emails )
                 
                 recipient = [email for email in store_emails if is_valid_email(email)]
                 if not recipient:
-                    recipient = backup_email
+                    recipient = [backup_email]
                     print("No valid store emails found, using default recipient.")
                     print(recipient)
                 cc = [lider_email] if is_valid_email(lider_email) else []
@@ -218,13 +243,12 @@ def lambda_handler(event, context):
                     raise ValueError("Missing email parameters")
 
                 send_email(recipient, subject, body_text, body_html, cc, bcc)
-                
 
+            print(json.dumps({'EventLog': event_log}))
         except Exception as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
-            print('ERROR')
             print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
-
-
+            
+    
     sqs_batch_response["batchItemFailures"] = batch_item_failures
     return sqs_batch_response
