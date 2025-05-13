@@ -6,6 +6,15 @@ from respond_dbconnection.secretManager import get_database_credentials
 
 db_credentials = get_database_credentials()
 
+event_log = {
+    "event_log": "respond_conversation_opened",
+    "event_data": {
+        "data": {},
+    },
+    "querys": {
+        "get_messages_after_time": ""
+    }
+}
 
 def handle_create_conversation(data):
     contact_id = str(data["contact"]["id"])
@@ -31,10 +40,13 @@ def handle_create_conversation(data):
     cursor.execute(insert_query, (conversation_cod, conversation_status, contact_id, conversation_source, conversation_opened_at, channel_id, dl_created_at, dl_modified_at, dl_condition))
     
     
+    event_log["event_data"]["data"] = data
+    event_log["querys"]["get_messages_after_time"] = cursor.mogrify(insert_query, (conversation_cod, conversation_status, contact_id, conversation_source, conversation_opened_at, channel_id, dl_created_at, dl_modified_at, dl_condition)).decode('utf-8')
+    
     conn.commit()
     cursor.close()
     conn.close()
-    print("Datos insertados correctamente en la tabla respond_io.conversation")
+    print("Datos insertados correctamente en la tabla respond_io.conversation para el contacto con ID:", contact_id)
 
 
 def lambda_handler(event, context):
@@ -43,12 +55,14 @@ def lambda_handler(event, context):
 
     for record in event["Records"]:
         try:
+            print(json.dumps({'Record': record}))
             body = json.loads(record["body"])
             message = json.loads(body["Message"])
             data = message
                         
             handle_create_conversation(data)
 
+            print(json.dumps({'EventLog': event_log}))
         except Exception as e:
             print('Error procesando el mensaje')
             print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
