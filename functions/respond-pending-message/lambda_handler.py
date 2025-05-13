@@ -1,7 +1,7 @@
 import json
 import psycopg2.extras
 from respondfunctions.emailbody_asesor import build_html
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 from int_respond_config import get_respond_config
 from int_respond_sendemail import send_email
@@ -15,6 +15,17 @@ backup_email = respond_config["backupEmail"]
 support_emails = respond_config["supportEmails"]
 
 db_credentials = get_database_credentials()
+
+event_log = {
+    "event": "respond-pending-message",
+    "event_data": {
+        "conversations": [],
+        "message_time": "",
+    },
+    "querys": {
+        "conversation_query": ""
+    }
+}
 
 def lambda_handler(event, context):
 
@@ -35,6 +46,10 @@ def lambda_handler(event, context):
         """
         cursor.execute(conversation_query)
         conversations = cursor.fetchall()
+        
+        event_log["querys"]["conversation_query"] = conversation_query
+        event_log["event_data"]["conversations"] = conversations
+        event_log["event_data"]["message_time"] = str(message_time)
 
         for conversation in conversations:
             try:
@@ -48,7 +63,15 @@ def lambda_handler(event, context):
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']
                 
-                last_hour = time_last_mess_out if time_last_mess_out else 'No hay mensajes salientes'
+                
+                print(f"Tiempo de la última conversación: {time_last_mess_in}")
+                last_hour = time_last_mess_in
+                # Convertir a hora local de Costa Rica (UTC-6)
+                costa_rica_tz = timezone(timedelta(hours=-6))
+                last_hour = last_hour.astimezone(costa_rica_tz)
+                # Formatear para eliminar el indicador de zona horaria
+                last_hour = last_hour.strftime('%Y-%m-%d %H:%M:%S')
+                
 
                 contact_identification = conversation['contact_identification'] if conversation['contact_identification'] else 'Sin cédula'
                 assignee_name = conversation['assignee_name'] if conversation['assignee_name'] else 'Equipo de Respond.io'
@@ -61,11 +84,11 @@ def lambda_handler(event, context):
                 
                 time_since_last_in = (message_time - time_last_mess_in).total_seconds() / 60
                 
-                responded_after_client = time_last_mess_out and time_last_mess_out > time_last_mess_in
+                # responded_after_client = time_last_mess_out and time_last_mess_out > time_last_mess_in
                 
-                print(time_since_last_in)
+                # print(time_since_last_in)
                 
-                if time_since_last_in >= first_time_notification and not responded_after_client and not mark_30min:
+                if time_since_last_in >= first_time_notification and not mark_30min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (30 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     
@@ -76,7 +99,7 @@ def lambda_handler(event, context):
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
 
-                elif time_since_last_in >= second_time_notification and not responded_after_client and not mark_60min:
+                elif time_since_last_in >= second_time_notification and not mark_60min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (60 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     
@@ -93,6 +116,7 @@ def lambda_handler(event, context):
 
         conn.commit()
         cursor.close()
+        print(json.dumps({'EventLog': event_log}))
 
     except Exception as e:
         print(f'ERROR: {e}')
