@@ -20,10 +20,9 @@ event_log = {
     "event": "respond-pending-message",
     "event_data": {
         "conversations": [],
-        "message_time": "",
         "mark_30min": "",
         "mark_60min": "",
-        "contact_identification": "",
+        "contact_identification": ""
     },
     "querys": {
         "conversation_query": ""
@@ -51,12 +50,11 @@ def lambda_handler(event, context):
         conversations = cursor.fetchall()
         
         event_log["querys"]["conversation_query"] = conversation_query
-        event_log["event_data"]["conversations"] = conversations
 
         for conversation in conversations:
             try:
-                print(f"Conversacion: {conversation}")
-                
+
+                # Obtener datos de la conversación
                 time_last_mess_in = conversation['time_last_mess_in']
                 if not time_last_mess_in:
                     print("No existe time_last_mess_in, saltando esta conversación.")
@@ -65,54 +63,55 @@ def lambda_handler(event, context):
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']
                 
+                # Guardar los datos de la conversación en el event_log
+                event_log["event_data"]["conversations"] = str(conversation)
                 event_log["event_data"]["contact_identification"] = conversation['contact_identification']
                 event_log["event_data"]["mark_30min"] = mark_30min
-                event_log["event_data"]["mark_60min"] = mark_60min
-                event_log["event_data"]["message_time"] = str(message_time)
+                event_log["event_data"]["mark_60min"] = mark_60min                
                 
-                
-                print(f"Tiempo de la última conversación: {time_last_mess_in}")
+
+                # Conversion de time_last_mess_in a objeto datetime
                 last_hour = time_last_mess_in
                 # Convertir a hora local de Costa Rica (UTC-6)
                 costa_rica_tz = timezone(timedelta(hours=-6))
                 last_hour = last_hour.astimezone(costa_rica_tz)
                 # Formatear para eliminar el indicador de zona horaria
                 last_hour = last_hour.strftime('%Y-%m-%d %H:%M:%S')
-                
-
+    
+    
+                # Obtener data del contacto y el agente
                 contact_identification = conversation['contact_identification'] if conversation['contact_identification'] else 'Sin cédula'
                 assignee_name = conversation['assignee_name'] if conversation['assignee_name'] else 'Equipo de Respond.io'
                 full_name = conversation['full_name']
-                
                 assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else backup_email
                 leader_email = conversation['leader_email'] if conversation['leader_email'] else None
-                
                 bcc = support_emails
-                
+
+                # Calcular el tiempo desde el último mensaje recibido
                 time_since_last_in = (message_time - time_last_mess_in).total_seconds() / 60
                 
-                # responded_after_client = time_last_mess_out and time_last_mess_out > time_last_mess_in
-                
-                # print(time_since_last_in)
-                
+                # Verificar si el tiempo desde el último mensaje recibido supera los límites establecidos
                 if time_since_last_in >= first_time_notification and not mark_30min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (30 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
-                    
+                    # Enviar correo electrónico de notificación de 30 minutos
                     try:
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
+                        conn.commit()           
                         send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
 
+                # Verificar si el tiempo desde el último mensaje recibido supera los límites establecidos
                 elif time_since_last_in >= second_time_notification and not mark_60min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (60 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
-                    
+                    # Enviar correo electrónico de notificación de 60 minutos
                     try:
-                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         cursor.execute("UPDATE respond_io.conversation SET mark_60min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
+                        conn.commit()               
+                        send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
                         print(f"Correo de 60 min enviado para contact_id: {conversation['contact_id']}")
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
@@ -123,7 +122,6 @@ def lambda_handler(event, context):
                 print(f'ERROR: {e}')
                 print(json.dumps({'ErrorRespond': str(e), 'Conversation': conversation}))
 
-        conn.commit()
         cursor.close()
 
 

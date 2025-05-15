@@ -10,7 +10,7 @@ from respond_dbconnection.dbconnection import connect
 from respond_dbconnection.secretManager import get_database_credentials
 
 respond_config = json.loads(get_respond_config())
-after_hour_notification_seconds = respond_config.get("afterHourNotificationSeconds", 900)  # 15 minutos
+after_hour_notification_seconds = respond_config.get("afterHourNotificationSeconds", 600)  # 15 minutos
 after_hour_notification_minutes = after_hour_notification_seconds / 60
 backup_email = respond_config["backupEmail"]
 support_emails = respond_config["supportEmails"]

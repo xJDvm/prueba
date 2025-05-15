@@ -44,7 +44,13 @@ def lambda_handler(event, context):
             
             contact_name = data["contact"]["firstName"] + " " + data["contact"]["lastName"]
             contact_id = data["contact"]["id"]
-            message_text = data["message"]["message"]["text"]
+            message_content = data.get("message", {}).get("message", {})
+            message_text = message_content.get("text", None)
+            
+            if not message_text:
+                continue  # Saltar al siguiente registro si no hay texto
+            
+            
             assignee_email = data["contact"]["assignee"]["email"]
             
             try:
@@ -81,10 +87,9 @@ def lambda_handler(event, context):
 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
-            print(f"ERROR: {e}")
+            print(f"ErrorJson: {e}")
         except Exception as e:
             batch_item_failures.append({"itemIdentifier": record['messageId']})
-            print(f"Unexpected error: {e}")
             print(json.dumps({'ErrorRespond': str(e), 'Record': record}))
 
     sqs_batch_response["batchItemFailures"] = batch_item_failures
