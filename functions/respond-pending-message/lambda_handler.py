@@ -40,7 +40,7 @@ def lambda_handler(event, context):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         conversation_query = """
-            SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min, ct.contact_identification, ct.contact_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.agent_email, ct.assignee_email, ct.leader_email, ct.contact_firstname || ' ' || COALESCE(ct.contact_lastname, '') as full_name,
+            SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min, ct.contact_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.agent_email, ct.assignee_email, ct.leader_email, ct.contact_firstname || ' ' || COALESCE(ct.contact_lastname, '') as full_name,
             (EXTRACT(EPOCH FROM (now() at time zone 'UTC'- c.time_last_mess_in)) / 60)::int AS difference_min
             FROM respond_io.conversation c
             JOIN respond_io.contacts ct ON c.contact_id = ct.contact_id
@@ -75,14 +75,10 @@ def lambda_handler(event, context):
                     print(json.dumps({'EventLog': event_log}))
                     continue
                 
-                # Conversion de time_last_mess_in a objeto datetime
-                last_hour = time_last_mess_in
-                # Convertir a hora local de Costa Rica (UTC-6)
+
                 costa_rica_tz = timezone(timedelta(hours=-6))
-                last_hour = last_hour.astimezone(costa_rica_tz)
-                # Formatear para eliminar el indicador de zona horaria
-                last_hour = last_hour.strftime('%Y-%m-%d %H:%M:%S')
-    
+                last_hour = time_last_mess_in.astimezone(costa_rica_tz).strftime('%Y-%m-%d %H:%M:%S')   
+
     
                 # Obtener data del contacto y el agente
                 contact_identification = conversation['contact_identification'] if conversation['contact_identification'] else 'Sin cédula'
@@ -91,34 +87,33 @@ def lambda_handler(event, context):
                 assignee_email = conversation['assignee_email'] if conversation['assignee_email'] else backup_email
                 leader_email = conversation['leader_email'] if conversation['leader_email'] else None
                 bcc = support_emails
-
-                # Calcular el tiempo desde el último mensaje recibido
-                time_since_last_in = (message_time - time_last_mess_in).total_seconds() / 60
                 
                 # Verificar si el tiempo desde el último mensaje recibido supera los límites establecidos
-                if time_since_last_in >= first_time_notification and not mark_30min:
+                if difference_min >= first_time_notification and not mark_30min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (30 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     # Enviar correo electrónico de notificación de 30 minutos
                     try:
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
-                        conn.commit()           
                         send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
+                        conn.commit()           
                         event_log["event_data"]["status_first_email"] = "Correo de 30 min enviado"
                     except ClientError as e:
+                        conn.rollback()
                         print("Error sending email: ", e.response['Error']['Message'])
 
                 # Verificar si el tiempo desde el último mensaje recibido supera los límites establecidos
-                elif time_since_last_in >= second_time_notification and not mark_60min:
+                elif difference_min >= second_time_notification and not mark_60min:
                     subject = f"Respond.io | Notificación de mensaje pendiente (60 min) - {full_name}"
                     body_html = build_html(assignee_name, conversation['contact_id'], full_name, contact_identification, last_hour)
                     # Enviar correo electrónico de notificación de 60 minutos
                     try:
                         cursor.execute("UPDATE respond_io.conversation SET mark_60min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
-                        conn.commit()               
                         send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
+                        conn.commit()               
                         event_log["event_data"]["status_second_email"] = "Correo de 60 min enviado"
                     except ClientError as e:
+                        conn.rollback()
                         print("Error sending email: ", e.response['Error']['Message'])
                 
                         
@@ -129,6 +124,7 @@ def lambda_handler(event, context):
                 print(json.dumps({'ErrorRespond': str(e), 'Conversation': conversation}))
 
         cursor.close()
+        conn.close()
 
 
     except Exception as e:
