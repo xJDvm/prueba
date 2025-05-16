@@ -22,7 +22,10 @@ event_log = {
         "conversations": [],
         "mark_30min": "",
         "mark_60min": "",
-        "contact_identification": ""
+        "contact_identification": "",
+        "developer_message": "",
+        "status_first_email": "",
+        "status_second_email": ""
     },
     "querys": {
         "conversation_query": ""
@@ -37,14 +40,14 @@ def lambda_handler(event, context):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         conversation_query = """
-            SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min,
-                    ct.contact_identification, 
-                    ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, 
-                    ct.agent_email, ct.assignee_email, ct.leader_email, 
-                    ct.contact_firstname || ' ' || COALESCE(ct.contact_lastname, '') as full_name
+            SELECT c.contact_id, c.time_last_mess_in, c.time_last_mess_out, c.mark_30min, c.mark_60min, ct.contact_identification, ct.contact_identification, ct.assignee_firstname || ' ' || ct.assignee_lastname as assignee_name, ct.agent_email, ct.assignee_email, ct.leader_email, ct.contact_firstname || ' ' || COALESCE(ct.contact_lastname, '') as full_name,
+            (EXTRACT(EPOCH FROM (now() at time zone 'UTC'- c.time_last_mess_in)) / 60)::int AS difference_min
             FROM respond_io.conversation c
             JOIN respond_io.contacts ct ON c.contact_id = ct.contact_id
-            WHERE c.conversation_status = 'open'
+            WHERE c.conversation_status 
+            = 'open' and
+            ( (c.mark_30min = false and (EXTRACT(EPOCH FROM (now() at time zone 'UTC'- c.time_last_mess_in)) / 60)::int >= 3/*tiempo de priemera marca de 30 minutos*/)
+            or (c.mark_60min = false and (EXTRACT(EPOCH FROM (now() at time zone 'UTC'- c.time_last_mess_in)) / 60)::int >= 6/*tiempo de segunda marca de 60 minutos*/)  );
         """
         cursor.execute(conversation_query)
         conversations = cursor.fetchall()
@@ -56,20 +59,22 @@ def lambda_handler(event, context):
 
                 # Obtener datos de la conversación
                 time_last_mess_in = conversation['time_last_mess_in']
-                if not time_last_mess_in:
-                    print("No existe time_last_mess_in, saltando esta conversación.")
-                    continue
                 time_last_mess_out = conversation['time_last_mess_out'] if conversation['time_last_mess_out'] else None
                 mark_30min = conversation['mark_30min']
                 mark_60min = conversation['mark_60min']
+                difference_min = conversation['difference_min']
                 
+                # Valida si el asesor ya respondió
                 # Guardar los datos de la conversación en el event_log
                 event_log["event_data"]["conversations"] = str(conversation)
                 event_log["event_data"]["contact_identification"] = conversation['contact_identification']
                 event_log["event_data"]["mark_30min"] = mark_30min
-                event_log["event_data"]["mark_60min"] = mark_60min                
+                event_log["event_data"]["mark_60min"] = mark_60min   
+                if not time_last_mess_in or time_last_mess_out:
+                    event_log["event_data"]["developer_message"] = "El asesor ya respondió"
+                    print(json.dumps({'EventLog': event_log}))
+                    continue
                 
-
                 # Conversion de time_last_mess_in a objeto datetime
                 last_hour = time_last_mess_in
                 # Convertir a hora local de Costa Rica (UTC-6)
@@ -99,7 +104,7 @@ def lambda_handler(event, context):
                         cursor.execute("UPDATE respond_io.conversation SET mark_30min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         conn.commit()           
                         send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
-                        print(f"Correo de 30 min enviado para contact_id: {conversation['contact_id']}")
+                        event_log["event_data"]["status_first_email"] = "Correo de 30 min enviado"
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
 
@@ -112,9 +117,10 @@ def lambda_handler(event, context):
                         cursor.execute("UPDATE respond_io.conversation SET mark_60min = %s WHERE contact_id = %s", (True, conversation['contact_id']))
                         conn.commit()               
                         send_email([assignee_email], subject, subject, body_html, [leader_email] if leader_email else None, bcc)
-                        print(f"Correo de 60 min enviado para contact_id: {conversation['contact_id']}")
+                        event_log["event_data"]["status_second_email"] = "Correo de 60 min enviado"
                     except ClientError as e:
                         print("Error sending email: ", e.response['Error']['Message'])
+                
                         
                 print(json.dumps({'EventLog': event_log}))
                         
